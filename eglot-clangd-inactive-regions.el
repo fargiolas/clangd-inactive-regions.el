@@ -29,6 +29,8 @@
 ;; It listens to inactiveRegions server notifications and use them to
 ;; darken inactive code
 
+;;; Code:
+
 (require 'eglot)
 (require 'cl-lib)
 
@@ -114,3 +116,5 @@ depending on current theme."
          (ecir--darken-region beg end eglot-clangd-inactive-regions-opacity)))))
 
 (provide 'eglot-clangd-inactive-regions)
+
+;;; eglot-clangd-inactive-regions.el ends here
