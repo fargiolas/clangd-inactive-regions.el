@@ -47,7 +47,8 @@ dim.")
 (defun ecir--color-blend (from-color to-color alpha)
   "Linearly interpolate between two colors."
   (let ((from-rgb (color-name-to-rgb from-color))
-        (to-rgb (color-name-to-rgb to-color)))
+        (to-rgb (color-name-to-rgb to-color))
+        (alpha (min 1.0 (max 0.0 alpha))))
     (apply 'format
            "#%02x%02x%02x"
            (cl-mapcar #'(lambda (a b)
@@ -103,6 +104,12 @@ face or theme change."
       (let ((beg (car range))
             (end (cdr range)))
         (ecir--darken-region beg end eglot-clangd-inactive-regions-opacity)))))
+
+(defun eglot-clangd-inactive-regions-change-opacity (opacity)
+  "Interactively set a new opacity value for inactive regions."
+  (interactive "nNew inactive region opacity: ")
+   (setq eglot-clangd-inactive-regions-opacity opacity)
+   (eglot-clangd-inactive-regions-refresh))
 
 (defun eglot-clangd-inactive-regions-cleanup ()
   "Clean up inactive regions."
