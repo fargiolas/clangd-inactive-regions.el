@@ -40,6 +40,7 @@ region. The lower the blending factor the more text will look
 dim.")
 
 (defvar-local eglot-clangd-inactive-regions-overlays '())
+(defvar-local eglot-clangd-inactive-regions-ranges '())
 
 ;; let's shorten namespace to ecir for private functions:
 ;; [e]glot-[c]langd-[i]nactive-[r]egions
@@ -60,6 +61,7 @@ create an overlay with a darkened face for each region with a
 different face. Current face foreground is blended with
 background with OPACITY as a blending factor. Results may vary
 depending on current theme."
+  (push (cons beg end) eglot-clangd-inactive-regions-ranges)
   (save-excursion
     (goto-char beg)
     (let ((cur-face (face-at-point))
@@ -91,6 +93,23 @@ depending on current theme."
             (setq cur-face new-face)))
         (forward-char)))))
 
+(defun eglot-clangd-inactive-regions-refresh ()
+  "Force a refresh of known inactive regions without waiting for a
+new notification from the server. Useful to update colors after a
+face or theme change."
+  (let ((ranges (copy-tree eglot-clangd-inactive-regions-ranges)))
+    (eglot-clangd-inactive-regions-cleanup)
+    (dolist (range ranges)
+      (let ((beg (car range))
+            (end (cdr range)))
+        (ecir--darken-region beg end eglot-clangd-inactive-regions-opacity)))))
+
+(defun eglot-clangd-inactive-regions-cleanup ()
+  "Clean up inactive regions."
+  (mapc #'delete-overlay eglot-clangd-inactive-regions-overlays)
+  (setq eglot-clangd-inactive-regions-overlays '())
+  (setq eglot-clangd-inactive-regions-ranges '()))
+
 (cl-defmethod eglot-client-capabilities :around (server)
   (let ((base (cl-call-next-method)))
     (when (cl-find "clangd" (process-command (jsonrpc--process server))
@@ -107,8 +126,7 @@ depending on current theme."
                                      (cl-getf textDocument :uri))))
             (buffer (find-buffer-visiting path)))
       (with-current-buffer buffer
-        (mapc #'delete-overlay eglot-clangd-inactive-regions-overlays)
-        (setq eglot-clangd-inactive-regions-overlays '())
+        (eglot-clangd-inactive-regions-cleanup)
         (cl-loop
          for r across regions
          for (beg . end) = (eglot--range-region r)
