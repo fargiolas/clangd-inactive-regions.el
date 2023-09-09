@@ -34,13 +34,34 @@
 (require 'eglot)
 (require 'cl-lib)
 
-(defvar eglot-clangd-inactive-regions-opacity 0.3
-  "Blending factor to mix foreground and background color of current
-region. The lower the blending factor the more text will look
-dim.")
+(defvar eglot-clangd-inactive-regions-opacity 0.55
+  "Blending factor for the `darken-foreground' method. Used to mix
+foreground and background color and apply to the foreground of
+the inactive region. The lower the blending factor the more text
+will look dim.")
+
+(defvar eglot-clangd-inactive-regions-shading 0.9
+  "Blending factor for the `shade-background' method. Used to mix
+background and foreground and shade inactive region
+background. The higher the less visible the shading will be.")
+
+(defvar eglot-clangd-inactive-regions-method "darken-foreground"
+  "Shading method to apply to the inactive code regions.
+Allowed methods:
+- darken-foreground: dim foreground color
+- shade-background: shade background color
+- shadow: apply shadow face.")
 
 (defvar-local eglot-clangd-inactive-regions-overlays '())
 (defvar-local eglot-clangd-inactive-regions-ranges '())
+
+(defface eglot-clangd-inactive-regions-shadow-face
+  '((t (:inherit shadow)))
+  "Face used to inactive code with shadow method.")
+
+(defface eglot-clangd-inactive-regions-shade-face
+  '((t (:extend t)))
+  "Face used to inactive code with shade-background method.")
 
 (define-minor-mode eglot-clangd-inactive-regions-mode
   ""
@@ -67,11 +88,10 @@ dim.")
 
 (defun eglot-clangd-inactive-regions-cleanup ()
   "Clean up inactive regions."
-  (message "CLEANUP")
+  (mapc #'delete-overlay eglot-clangd-inactive-regions-overlays)
   (with-silent-modifications
     (remove-text-properties (point-min) (point-max) '(ecir-inactive nil)))
-  (mapc #'delete-overlay eglot-clangd-inactive-regions-overlays)
-  (font-lock-update))
+  (font-lock-flush))
 
 (defun eglot-clangd-inactive-regions--get-face (pos)
   (or (get-text-property pos 'face)
@@ -149,13 +169,33 @@ dim.")
   "Force a refresh of known inactive regions without waiting for a
  new notification from the server. Useful to update colors after a
  face or theme change."
+  (eglot-clangd-inactive-regions-cleanup)
+  (when (string= eglot-clangd-inactive-regions-method "shade-background")
+    (set-face-background
+     'eglot-clangd-inactive-regions-shade-face
+     (eglot-clangd-inactive-regions--color-blend
+      (face-background 'default)
+      (face-foreground 'default)
+      eglot-clangd-inactive-regions-shading)))
   (let ((ranges (copy-tree eglot-clangd-inactive-regions-ranges)))
     (dolist (range ranges)
       (let ((beg (car range))
             (end (cdr range)))
-        (with-silent-modifications
-          (put-text-property beg end 'ecir-inactive t))
-        (font-lock-flush beg end)))))
+        (cond
+         ((string= eglot-clangd-inactive-regions-method "darken-foreground")
+          (with-silent-modifications
+            (put-text-property beg end 'ecir-inactive t))
+          (font-lock-flush beg end))
+         ((string= eglot-clangd-inactive-regions-method "shadow")
+          (let ((ov (make-overlay beg end)))
+            (overlay-put ov 'face 'eglot-clangd-inactive-regions-shadow-face)
+            (push ov eglot-clangd-inactive-regions-overlays)))
+         ((string= eglot-clangd-inactive-regions-method "shade-background")
+          (let ((ov (make-overlay beg (1+ end))))
+            (overlay-put ov 'face 'eglot-clangd-inactive-regions-shade-face)
+            (push ov eglot-clangd-inactive-regions-overlays)))
+         )
+        ))))
 
 
 (cl-defmethod eglot-client-capabilities :around (server)
@@ -175,7 +215,6 @@ dim.")
               (buffer (find-buffer-visiting path)))
         (with-current-buffer buffer
           (when eglot-clangd-inactive-regions-mode
-            (eglot-clangd-inactive-regions-cleanup)
             (setq eglot-clangd-inactive-regions-ranges '())
             (cl-loop
              for r across regions
