@@ -1,25 +1,25 @@
-;;; eglot-clangd-inactive-regions.el -*- lexical-binding: t; -*-
+;;; clangd-inactive-regions.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2023 Filippo Argiolas <filippo.argiolas@gmail.com>
 ;; Based on an example implementation from João Távora <joaotavora@gmail.com> (see bug#65418)
 
 ;; Author: Filippo Argiolas <filippo.argiolas@gmail.com>
 ;; Version: 0.2
-;; URL: https://github.com/fargiolas/eglot-clangd-inactive-regions
-;; Package-Requires: ((eglot "1.15"))
+;; URL: https://github.com/fargiolas/clangd-inactive-regions
+;; Package-Requires: ((eglot))
 
-;; eglot-clangd-inactive-regions is free software: you can
-;; redistribute it and/or modify it under the terms of the GNU General
-;; Public License as published by the Free Software Foundation, either
+;; clangd-inactive-regions.el is free software: you can redistribute
+;; it and/or modify it under the terms of the GNU General Public
+;; License as published by the Free Software Foundation, either
 ;; version 3 of the License, or (at your option) any later version.
 
-;; eglot-clangd-inactive-regions is distributed in the hope that it
-;; will be useful, but WITHOUT ANY WARRANTY; without even the implied
+;; clangd-inactive-regions.el is distributed in the hope that it will
+;; be useful, but WITHOUT ANY WARRANTY; without even the implied
 ;; warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ;; See the GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with eglot-clangd-inactive-regions.  If not, see
+;; along with clangd-inactive-regions.el.  If not, see
 ;; <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
@@ -34,47 +34,47 @@
 (require 'eglot)
 (require 'cl-lib)
 
-(defvar eglot-clangd-inactive-regions-opacity 0.55
+(defvar clangd-inactive-regions-opacity 0.55
   "Blending factor for the `darken-foreground' method. Used to mix
 foreground and background color and apply to the foreground of
 the inactive region. The lower the blending factor the more text
 will look dim.")
 
-(defvar eglot-clangd-inactive-regions-shading 0.9
+(defvar clangd-inactive-regions-shading 0.9
   "Blending factor for the `shade-background' method. Used to mix
 background and foreground and shade inactive region
 background. The higher the less visible the shading will be.")
 
-(defvar eglot-clangd-inactive-regions-method "darken-foreground"
+(defvar clangd-inactive-regions-method "darken-foreground"
   "Shading method to apply to the inactive code regions.
 Allowed methods:
 - darken-foreground: dim foreground color
 - shade-background: shade background color
 - shadow: apply shadow face.")
 
-(defvar-local eglot-clangd-inactive-regions-overlays '())
-(defvar-local eglot-clangd-inactive-regions-ranges '())
+(defvar-local clangd-inactive-regions-overlays '())
+(defvar-local clangd-inactive-regions-ranges '())
 
-(defface eglot-clangd-inactive-regions-shadow-face
+(defface clangd-inactive-regions-shadow-face
   '((t (:inherit shadow)))
   "Face used to inactive code with shadow method.")
 
-(defface eglot-clangd-inactive-regions-shade-face
+(defface clangd-inactive-regions-shade-face
   '((t (:extend t)))
   "Face used to inactive code with shade-background method.")
 
-(define-minor-mode eglot-clangd-inactive-regions-mode
+(define-minor-mode clangd-inactive-regions-mode
   ""
   :global nil
-  (cond (eglot-clangd-inactive-regions-mode
+  (cond (clangd-inactive-regions-mode
          (add-function :after (local 'font-lock-fontify-region-function)
-                       #'eglot-inactive-regions-fontify))
+                       #'clangd-inactive-regions--fontify))
         (t
          (remove-function (local 'font-lock-fontify-region-function)
-                          #'eglot-inactive-regions-fontify)
-         (eglot-clangd-inactive-regions-cleanup))))
+                          #'clangd-inactive-regions--fontify)
+         (clangd-inactive-regions-cleanup))))
 
-(defun eglot-clangd-inactive-regions--color-blend (from-color to-color alpha)
+(defun clangd-inactive-regions--color-blend (from-color to-color alpha)
   "Linearly interpolate between two colors."
   (let ((from-rgb (color-name-to-rgb from-color))
         (to-rgb (color-name-to-rgb to-color))
@@ -86,18 +86,18 @@ Allowed methods:
                                               (* b (- 1.0 alpha))))))
                       from-rgb to-rgb))))
 
-(defun eglot-clangd-inactive-regions-cleanup ()
+(defun clangd-inactive-regions-cleanup ()
   "Clean up inactive regions."
-  (mapc #'delete-overlay eglot-clangd-inactive-regions-overlays)
+  (mapc #'delete-overlay clangd-inactive-regions-overlays)
   (with-silent-modifications
     (remove-text-properties (point-min) (point-max) '(ecir-inactive nil)))
   (font-lock-flush))
 
-(defun eglot-clangd-inactive-regions--get-face (pos)
+(defun clangd-inactive-regions--get-face (pos)
   (or (get-text-property pos 'face)
       'default))
 
-(defun eglot-inactive-regions-fontify (start end &rest args)
+(defun clangd-inactive-regions--fontify (start end &rest args)
   ;; sometimes font lock fontifies in chunks and each fontification
   ;; functions takes care of extending the region to something
   ;; syntactically relevant... guess we need to do the same, extend to
@@ -134,9 +134,9 @@ Allowed methods:
         (save-restriction
           (widen)
           (goto-char from)
-          (setq cur-face (eglot-clangd-inactive-regions--get-face (point)))
+          (setq cur-face (clangd-inactive-regions--get-face (point)))
           (while (<= (point) to)
-            (let* ((new-face (eglot-clangd-inactive-regions--get-face (point))))
+            (let* ((new-face (clangd-inactive-regions--get-face (point))))
               ;; chunk to fontify ends either at a face change or at
               ;; TO region limit. Use face name to check if chunk is already fontified
               (when (and (or (not (eq cur-face new-face))
@@ -146,8 +146,8 @@ Allowed methods:
                 (let* ((fg (face-foreground cur-face nil 'default))
                        (bg (face-background cur-face nil 'default))
                        (clangd-inactive-fg
-                        (eglot-clangd-inactive-regions--color-blend
-                         fg bg eglot-clangd-inactive-regions-opacity))
+                        (clangd-inactive-regions--color-blend
+                         fg bg clangd-inactive-regions-opacity))
                        (clangd-inactive-face-name
                         (concat (face-name cur-face) "-clangd-inactive"))
                        (clangd-inactive-face (intern clangd-inactive-face-name))
@@ -165,35 +165,35 @@ Allowed methods:
             (forward-char)))))
     (setq start to)))
 
-(defun eglot-clangd-inactive-regions-refresh ()
+(defun clangd-inactive-regions-refresh ()
   "Force a refresh of known inactive regions without waiting for a
  new notification from the server. Useful to update colors after a
  face or theme change."
-  (eglot-clangd-inactive-regions-cleanup)
-  (when (string= eglot-clangd-inactive-regions-method "shade-background")
+  (clangd-inactive-regions-cleanup)
+  (when (string= clangd-inactive-regions-method "shade-background")
     (set-face-background
-     'eglot-clangd-inactive-regions-shade-face
-     (eglot-clangd-inactive-regions--color-blend
+     'clangd-inactive-regions-shade-face
+     (clangd-inactive-regions--color-blend
       (face-background 'default)
       (face-foreground 'default)
-      eglot-clangd-inactive-regions-shading)))
-  (let ((ranges (copy-tree eglot-clangd-inactive-regions-ranges)))
+      clangd-inactive-regions-shading)))
+  (let ((ranges (copy-tree clangd-inactive-regions-ranges)))
     (dolist (range ranges)
       (let ((beg (car range))
             (end (cdr range)))
         (cond
-         ((string= eglot-clangd-inactive-regions-method "darken-foreground")
+         ((string= clangd-inactive-regions-method "darken-foreground")
           (with-silent-modifications
             (put-text-property beg end 'ecir-inactive t))
           (font-lock-flush beg end))
-         ((string= eglot-clangd-inactive-regions-method "shadow")
+         ((string= clangd-inactive-regions-method "shadow")
           (let ((ov (make-overlay beg end)))
-            (overlay-put ov 'face 'eglot-clangd-inactive-regions-shadow-face)
-            (push ov eglot-clangd-inactive-regions-overlays)))
-         ((string= eglot-clangd-inactive-regions-method "shade-background")
+            (overlay-put ov 'face 'clangd-inactive-regions-shadow-face)
+            (push ov clangd-inactive-regions-overlays)))
+         ((string= clangd-inactive-regions-method "shade-background")
           (let ((ov (make-overlay beg (1+ end))))
-            (overlay-put ov 'face 'eglot-clangd-inactive-regions-shade-face)
-            (push ov eglot-clangd-inactive-regions-overlays)))
+            (overlay-put ov 'face 'clangd-inactive-regions-shade-face)
+            (push ov clangd-inactive-regions-overlays)))
          )
         ))))
 
@@ -214,15 +214,15 @@ Allowed methods:
                                        (cl-getf textDocument :uri))))
               (buffer (find-buffer-visiting path)))
         (with-current-buffer buffer
-          (when eglot-clangd-inactive-regions-mode
-            (setq eglot-clangd-inactive-regions-ranges '())
+          (when clangd-inactive-regions-mode
+            (setq clangd-inactive-regions-ranges '())
             (cl-loop
              for r across regions
              for (beg . end) = (eglot--range-region r)
              do
-             (push (cons beg end) eglot-clangd-inactive-regions-ranges))
-            (eglot-clangd-inactive-regions-refresh)))))
+             (push (cons beg end) clangd-inactive-regions-ranges))
+            (clangd-inactive-regions-refresh)))))
 
-(provide 'eglot-clangd-inactive-regions)
+(provide 'clangd-inactive-regions)
 
-;;; eglot-clangd-inactive-regions.el ends here
+;;; clangd-inactive-regions.el ends here
