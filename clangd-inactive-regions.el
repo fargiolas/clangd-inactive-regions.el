@@ -31,8 +31,10 @@
 
 ;;; Code:
 
-(require 'eglot)
 (require 'cl-lib)
+(require 'eglot)
+(require 'color)
+(require 'font-lock)
 
 (defvar clangd-inactive-regions-opacity 0.55
   "Blending factor for the `darken-foreground' method. Used to mix
@@ -52,9 +54,6 @@ Allowed methods:
 - shade-background: shade background color
 - shadow: apply shadow face.")
 
-(defvar-local clangd-inactive-regions-overlays '())
-(defvar-local clangd-inactive-regions-ranges '())
-
 (defface clangd-inactive-regions-shadow-face
   '((t (:inherit shadow)))
   "Face used to inactive code with shadow method.")
@@ -62,6 +61,9 @@ Allowed methods:
 (defface clangd-inactive-regions-shade-face
   '((t (:extend t)))
   "Face used to inactive code with shade-background method.")
+
+(defvar-local clangd-inactive-regions--overlays '())
+(defvar-local clangd-inactive-regions--ranges '())
 
 (define-minor-mode clangd-inactive-regions-mode
   ""
@@ -88,7 +90,7 @@ Allowed methods:
 
 (defun clangd-inactive-regions-cleanup ()
   "Clean up inactive regions."
-  (mapc #'delete-overlay clangd-inactive-regions-overlays)
+  (mapc #'delete-overlay clangd-inactive-regions--overlays)
   (with-silent-modifications
     (remove-text-properties (point-min) (point-max) '(ecir-inactive nil)))
   (font-lock-flush))
@@ -145,15 +147,10 @@ Allowed methods:
 
                 (let* ((fg (face-foreground cur-face nil 'default))
                        (bg (face-background cur-face nil 'default))
-                       (clangd-inactive-fg
-                        (clangd-inactive-regions--color-blend
-                         fg bg clangd-inactive-regions-opacity))
-                       (clangd-inactive-face-name
-                        (concat (face-name cur-face) "-clangd-inactive"))
+                       (clangd-inactive-fg (clangd-inactive-regions--color-blend fg bg clangd-inactive-regions-opacity))
+                       (clangd-inactive-face-name (concat (face-name cur-face) "-clangd-inactive"))
                        (clangd-inactive-face (intern clangd-inactive-face-name))
-                       (clangd-inactive-doc
-                        (concat (face-documentation cur-face)
-                                " (clangd inactive region darkened face)")))
+                       (clangd-inactive-doc (concat (face-documentation cur-face) " (clangd inactive region darkened face)")))
 
                   (unless (facep clangd-inactive-face)
                     (eval `(defface ,clangd-inactive-face '((t nil)) ,clangd-inactive-doc)))
@@ -171,13 +168,12 @@ Allowed methods:
  face or theme change."
   (clangd-inactive-regions-cleanup)
   (when (string= clangd-inactive-regions-method "shade-background")
-    (set-face-background
-     'clangd-inactive-regions-shade-face
+    (set-face-background 'clangd-inactive-regions-shade-face
      (clangd-inactive-regions--color-blend
       (face-background 'default)
       (face-foreground 'default)
       clangd-inactive-regions-shading)))
-  (let ((ranges (copy-tree clangd-inactive-regions-ranges)))
+  (let ((ranges (copy-tree clangd-inactive-regions--ranges)))
     (dolist (range ranges)
       (let ((beg (car range))
             (end (cdr range)))
@@ -189,11 +185,11 @@ Allowed methods:
          ((string= clangd-inactive-regions-method "shadow")
           (let ((ov (make-overlay beg end)))
             (overlay-put ov 'face 'clangd-inactive-regions-shadow-face)
-            (push ov clangd-inactive-regions-overlays)))
+            (push ov clangd-inactive-regions--overlays)))
          ((string= clangd-inactive-regions-method "shade-background")
           (let ((ov (make-overlay beg (1+ end))))
             (overlay-put ov 'face 'clangd-inactive-regions-shade-face)
-            (push ov clangd-inactive-regions-overlays)))
+            (push ov clangd-inactive-regions--overlays)))
          )
         ))))
 
@@ -215,12 +211,12 @@ Allowed methods:
               (buffer (find-buffer-visiting path)))
         (with-current-buffer buffer
           (when clangd-inactive-regions-mode
-            (setq clangd-inactive-regions-ranges '())
+            (setq clangd-inactive-regions--ranges '())
             (cl-loop
              for r across regions
              for (beg . end) = (eglot--range-region r)
              do
-             (push (cons beg end) clangd-inactive-regions-ranges))
+             (push (cons beg end) clangd-inactive-regions--ranges))
             (clangd-inactive-regions-refresh)))))
 
 (provide 'clangd-inactive-regions)
