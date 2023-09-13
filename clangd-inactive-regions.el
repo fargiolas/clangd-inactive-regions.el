@@ -91,13 +91,31 @@ Allowed methods:
 (defun clangd-inactive-regions-cleanup ()
   "Clean up inactive regions."
   (mapc #'delete-overlay clangd-inactive-regions--overlays)
+  (setq clangd-inactive-regions--overlays '())
   (with-silent-modifications
-    (remove-text-properties (point-min) (point-max) '(ecir-inactive nil)))
+    (remove-text-properties (point-min) (point-max) '(clangd-inactive-region nil)))
   (font-lock-flush))
 
 (defun clangd-inactive-regions--get-face (pos)
   (or (get-text-property pos 'face)
       'default))
+
+(defun clangd-inactive-regions--make-darken-face (parent-face)
+  "Return a new face from PARENT-FACE blending background and
+foreground colors, if the face doesn't exist yet create it."
+  (let* ((fg (face-foreground parent-face nil 'default))
+         (bg (face-background parent-face nil 'default))
+         (clangd-inactive-fg (clangd-inactive-regions--color-blend fg bg clangd-inactive-regions-opacity))
+         (clangd-inactive-face-name (concat (face-name parent-face) "-clangd-inactive"))
+         (clangd-inactive-face (intern clangd-inactive-face-name))
+         (clangd-inactive-doc (concat (face-documentation parent-face) " (clangd inactive region darkened face)")))
+
+    (unless (facep clangd-inactive-face)
+      (eval `(defface ,clangd-inactive-face '((t nil)) ,clangd-inactive-doc)))
+
+    (set-face-foreground clangd-inactive-face clangd-inactive-fg)
+
+    clangd-inactive-face))
 
 (defun clangd-inactive-regions--fontify (start end &rest args)
   ;; sometimes font lock fontifies in chunks and each fontification
@@ -119,47 +137,35 @@ Allowed methods:
 
   ;; find the inactive region inside the region to fontify
   (while (and start (< start end))
-    (setq from (or (text-property-any start end 'ecir-inactive t)
+    (setq from (or (text-property-any start end 'clangd-inactive-region t)
                     end))
-    (setq to (or (text-property-any from end 'ecir-inactive nil)
-                    end))
+    (setq to (or (text-property-any from end 'clangd-inactive-region nil)
+                 end))
 
-    ;; the idea now is to iterate through the region, split it at face
-    ;; changes, create a new inactive face with darkened color and
-    ;; apply it
+    ;; the idea here is to iterate through the region by syntax
+    ;; blocks, derive a new face from current one with dimmed
+    ;; foreground and apply the new face with an overlay
 
-    ;; code is a bit more convoluted than I'd like but I'm pretty new
-    ;; at elisp and it seems to work
+    ;; there is some overlay duplication for regions extended by the
+    ;; above code but they will only live until the next inactive
+    ;; region update and don't seem to cause much issues... will keep
+    ;; an eye on it while I find a solution
     (setq beg from)
     (when (> to from)
       (save-excursion
         (save-restriction
           (widen)
           (goto-char from)
-          (setq cur-face (clangd-inactive-regions--get-face (point)))
           (while (<= (point) to)
-            (let* ((new-face (clangd-inactive-regions--get-face (point))))
-              ;; chunk to fontify ends either at a face change or at
-              ;; TO region limit. Use face name to check if chunk is already fontified
-              (when (and (or (not (eq cur-face new-face))
-                             (eq (point) to))
-                         (not (string-suffix-p "-clangd-inactive" (face-name cur-face))))
-
-                (let* ((fg (face-foreground cur-face nil 'default))
-                       (bg (face-background cur-face nil 'default))
-                       (clangd-inactive-fg (clangd-inactive-regions--color-blend fg bg clangd-inactive-regions-opacity))
-                       (clangd-inactive-face-name (concat (face-name cur-face) "-clangd-inactive"))
-                       (clangd-inactive-face (intern clangd-inactive-face-name))
-                       (clangd-inactive-doc (concat (face-documentation cur-face) " (clangd inactive region darkened face)")))
-
-                  (unless (facep clangd-inactive-face)
-                    (eval `(defface ,clangd-inactive-face '((t nil)) ,clangd-inactive-doc)))
-
-                  (set-face-foreground clangd-inactive-face clangd-inactive-fg)
-                  (put-text-property beg (point) 'face clangd-inactive-face))
-                (setq beg (point)))
-              (setq cur-face new-face))
-            (forward-char)))))
+            (forward-same-syntax)
+            ;; no need to dim whitespace
+            (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
+              (let* ((cur-face (clangd-inactive-regions--get-face (1- (point))))
+                     (clangd-inactive-face (clangd-inactive-regions--make-darken-face cur-face)))
+                (let* ((ov (make-overlay beg (point))))
+                  (overlay-put ov 'face clangd-inactive-face)
+                  (push ov clangd-inactive-regions--overlays))))
+            (setq beg (point))))))
     (setq start to)))
 
 (defun clangd-inactive-regions-refresh ()
@@ -180,7 +186,7 @@ Allowed methods:
         (cond
          ((string= clangd-inactive-regions-method "darken-foreground")
           (with-silent-modifications
-            (put-text-property beg end 'ecir-inactive t))
+            (put-text-property beg end 'clangd-inactive-region t))
           (font-lock-flush beg end))
          ((string= clangd-inactive-regions-method "shadow")
           (let ((ov (make-overlay beg end)))
