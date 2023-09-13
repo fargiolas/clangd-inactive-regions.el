@@ -36,6 +36,10 @@
 (require 'color)
 (require 'font-lock)
 
+(defvar-local clangd-inactive-regions--overlays '())
+(defvar-local clangd-inactive-regions--ranges '())
+(defvar clangd-inactive-regions--methods '("darken-foreground" "shade-background" "shadow"))
+
 (defvar clangd-inactive-regions-opacity 0.55
   "Blending factor for the `darken-foreground' method. Used to mix
 foreground and background color and apply to the foreground of
@@ -62,9 +66,6 @@ Allowed methods:
   '((t (:extend t)))
   "Face used to inactive code with shade-background method.")
 
-(defvar-local clangd-inactive-regions--overlays '())
-(defvar-local clangd-inactive-regions--ranges '())
-
 (define-minor-mode clangd-inactive-regions-mode
   ""
   :global nil
@@ -75,6 +76,31 @@ Allowed methods:
          (remove-function (local 'font-lock-fontify-region-function)
                           #'clangd-inactive-regions--fontify)
          (clangd-inactive-regions-cleanup))))
+
+(defun clangd-inactive-regions-set-method (method)
+  (interactive
+   (list (let ((completion-ignore-case t)
+	       (prompt "Set inactive regions shading method: "))
+	   (completing-read prompt clangd-inactive-regions--methods nil t nil))))
+  (setq clangd-inactive-regions-method method)
+  (when (clangd-inactive-regions-mode)
+    (clangd-inactive-regions-refresh)))
+
+(defun clangd-inactive-regions-set-opacity (opacity)
+  "Interactively set a new opacity value for inactive regions when
+`darken-foreground' method is enabled."
+  (interactive "nNew inactive region foreground color opacity: ")
+  (setq clangd-inactive-regions-opacity opacity)
+  (when (clangd-inactive-regions-mode)
+    (clangd-inactive-regions-refresh)))
+
+(defun clangd-inactive-regions-set-shading (shading)
+  "Interactively set a new shading value for inactive regions when
+`shade-background' method is enabled."
+  (interactive "nNew inactive region background color shading: ")
+  (setq clangd-inactive-regions-shading shading)
+  (when (clangd-inactive-regions-mode)
+    (clangd-inactive-regions-refresh)))
 
 (defun clangd-inactive-regions--color-blend (from-color to-color alpha)
   "Linearly interpolate between two colors."
