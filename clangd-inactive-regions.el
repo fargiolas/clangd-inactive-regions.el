@@ -82,6 +82,8 @@ Allowed methods:
    (list (let ((completion-ignore-case t)
 	       (prompt "Set inactive regions shading method: "))
 	   (completing-read prompt clangd-inactive-regions--methods nil t nil))))
+  (unless (member method clangd-inactive-regions--methods)
+    (error "Unknown shading method: %s" method))
   (setq clangd-inactive-regions-method method)
   (when (clangd-inactive-regions-mode)
     (clangd-inactive-regions-refresh)))
