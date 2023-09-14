@@ -89,7 +89,9 @@ Allowed methods:
 (defun clangd-inactive-regions-set-opacity (opacity)
   "Interactively set a new opacity value for inactive regions when
 `darken-foreground' method is enabled."
-  (interactive "nNew inactive region foreground color opacity: ")
+  (interactive "nNew inactive region foreground color opacity [0-1.0]: ")
+  (unless (and (>= opacity 0.0) (< opacity 1.0))
+    (error "Opacity should be between 0.0 and 1.0"))
   (setq clangd-inactive-regions-opacity opacity)
   (when (clangd-inactive-regions-mode)
     (clangd-inactive-regions-refresh)))
@@ -97,7 +99,9 @@ Allowed methods:
 (defun clangd-inactive-regions-set-shading (shading)
   "Interactively set a new shading value for inactive regions when
 `shade-background' method is enabled."
-  (interactive "nNew inactive region background color shading: ")
+  (interactive "nNew inactive region background color shading [0-1.0]: ")
+  (unless (and (>= shading 0.0) (< shading 1.0))
+    (error "Shading factor should be between 0.0 and 1.0"))
   (setq clangd-inactive-regions-shading shading)
   (when (clangd-inactive-regions-mode)
     (clangd-inactive-regions-refresh)))
