@@ -46,7 +46,7 @@ foreground and background color and apply to the foreground of
 the inactive region. The lower the blending factor the more text
 will look dim.")
 
-(defvar clangd-inactive-regions-shading 0.9
+(defvar clangd-inactive-regions-shading 0.08
   "Blending factor for the `shade-background' method. Used to mix
 background and foreground and shade inactive region
 background. The higher the less visible the shading will be.")
@@ -206,8 +206,8 @@ foreground colors, if the face doesn't exist yet create it."
   (when (string= clangd-inactive-regions-method "shade-background")
     (set-face-background 'clangd-inactive-regions-shade-face
      (clangd-inactive-regions--color-blend
-      (face-background 'default)
       (face-foreground 'default)
+      (face-background 'default)
       clangd-inactive-regions-shading)))
   (let ((ranges (copy-tree clangd-inactive-regions--ranges)))
     (dolist (range ranges)
