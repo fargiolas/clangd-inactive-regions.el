@@ -149,7 +149,17 @@ foreground colors, if the face doesn't exist yet create it."
 
     clangd-inactive-face))
 
-(defun clangd-inactive-regions--fontify (start end &rest args)
+(defun forward-face-or-whitepace ()
+  (setq prev-face (get-text-property (point) 'face))
+  (forward-char)
+  (setq next-face (get-text-property (point) 'face))
+  (while (and (eq prev-face next-face)
+              (not (thing-at-point 'whitespace)))
+    (setq prev-face (get-text-property (point) 'face))
+    (forward-char)
+    (setq next-face (get-text-property (point) 'face))))
+
+(defun clangd-inactive-regions--fontify (start end &optional verbose)
   ;; sometimes font lock fontifies in chunks and each fontification
   ;; functions takes care of extending the region to something
   ;; syntactically relevant... guess we need to do the same, extend to
@@ -189,9 +199,7 @@ foreground colors, if the face doesn't exist yet create it."
           (widen)
           (goto-char from)
           (while (<= (point) to)
-            (forward-same-syntax)
-            (when (eq beg (point))
-              (forward-char))
+            (forward-face-or-whitepace)
             ;; no need to dim whitespace
             (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
               (let* ((cur-face (clangd-inactive-regions--get-face (1- (point))))
