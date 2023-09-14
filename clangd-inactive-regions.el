@@ -190,6 +190,8 @@ foreground colors, if the face doesn't exist yet create it."
           (goto-char from)
           (while (<= (point) to)
             (forward-same-syntax)
+            (when (eq beg (point))
+              (forward-char))
             ;; no need to dim whitespace
             (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
               (let* ((cur-face (clangd-inactive-regions--get-face (1- (point))))
