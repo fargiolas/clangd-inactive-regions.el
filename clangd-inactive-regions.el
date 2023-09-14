@@ -207,29 +207,26 @@ foreground colors, if the face doesn't exist yet create it."
   (clangd-inactive-regions-cleanup)
   (when (string= clangd-inactive-regions-method "shade-background")
     (set-face-background 'clangd-inactive-regions-shade-face
-     (clangd-inactive-regions--color-blend
-      (face-foreground 'default)
-      (face-background 'default)
-      clangd-inactive-regions-shading)))
-  (let ((ranges (copy-tree clangd-inactive-regions--ranges)))
-    (dolist (range ranges)
-      (let ((beg (car range))
-            (end (cdr range)))
-        (cond
-         ((string= clangd-inactive-regions-method "darken-foreground")
-          (with-silent-modifications
-            (put-text-property beg end 'clangd-inactive-region t))
-          (font-lock-flush beg end))
-         ((string= clangd-inactive-regions-method "shadow")
-          (let ((ov (make-overlay beg end)))
-            (overlay-put ov 'face 'clangd-inactive-regions-shadow-face)
-            (push ov clangd-inactive-regions--overlays)))
-         ((string= clangd-inactive-regions-method "shade-background")
-          (let ((ov (make-overlay beg (1+ end))))
-            (overlay-put ov 'face 'clangd-inactive-regions-shade-face)
-            (push ov clangd-inactive-regions--overlays)))
-         )
-        ))))
+                         (clangd-inactive-regions--color-blend
+                          (face-foreground 'default)
+                          (face-background 'default)
+                          clangd-inactive-regions-shading)))
+  (dolist (range clangd-inactive-regions--ranges)
+    (let ((beg (car range))
+          (end (cdr range)))
+      (cond
+       ((string= clangd-inactive-regions-method "darken-foreground")
+        (with-silent-modifications
+          (put-text-property beg end 'clangd-inactive-region t))
+        (font-lock-flush beg end))
+       ((string= clangd-inactive-regions-method "shadow")
+        (let ((ov (make-overlay beg end)))
+          (overlay-put ov 'face 'clangd-inactive-regions-shadow-face)
+          (push ov clangd-inactive-regions--overlays)))
+       ((string= clangd-inactive-regions-method "shade-background")
+        (let ((ov (make-overlay beg (1+ end))))
+          (overlay-put ov 'face 'clangd-inactive-regions-shade-face)
+          (push ov clangd-inactive-regions--overlays)))))))
 
 
 (cl-defmethod eglot-client-capabilities :around (server)
