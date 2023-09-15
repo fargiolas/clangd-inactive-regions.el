@@ -41,3 +41,20 @@ Feedback, issues and pull requests more than welcome!
   (setq clangd-inactive-regions-opacity 0.55)
   (add-hook 'eglot-managed-mode-hook #'clangd-inactive-regions-mode))
 ```
+
+
+## Caveats
+
+As far as I know Emacs doesn't have a way to set foreground text
+opacity. Best would be a face attribute so that you can set it in an
+overlay covering the whole inactive regions and be done with it.
+
+So `darken-foreground` method is a fragile and inefficient hack around
+fontification that for each inactive region looks for symbols with
+different faces and applies to each of them a different overlay with a
+dimmed foreground color.
+
+It seems to work with cc and c-ts modes (albeit a little slower than
+I'd like) but could totally break other modes or features I'm not aware of.
+
+If you know a better way please do let me know.
