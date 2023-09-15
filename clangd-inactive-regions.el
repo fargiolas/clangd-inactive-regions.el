@@ -129,8 +129,11 @@ Allowed methods:
   (font-lock-flush))
 
 (defun clangd-inactive-regions--get-face (pos)
-  (or (get-text-property pos 'face)
-      'default))
+  (let ((face-prop
+         (or (get-text-property pos 'face) 'default)))
+    (if (listp face-prop)
+        (car face-prop)
+      face-prop)))
 
 (defun clangd-inactive-regions--make-darken-face (parent-face)
   "Return a new face from PARENT-FACE blending background and
