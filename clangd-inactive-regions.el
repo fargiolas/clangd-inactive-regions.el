@@ -70,10 +70,10 @@ Allowed methods:
   ""
   :global nil
   (cond (clangd-inactive-regions-mode
-         (add-function :after (local 'font-lock-fontify-region-function)
+         (add-function :after (default-value 'font-lock-fontify-region-function)
                        #'clangd-inactive-regions--fontify))
         (t
-         (remove-function (local 'font-lock-fontify-region-function)
+         (remove-function (default-value 'font-lock-fontify-region-function)
                           #'clangd-inactive-regions--fontify)
          (clangd-inactive-regions-cleanup))))
 
