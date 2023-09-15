@@ -231,7 +231,7 @@ foreground colors, if the face doesn't exist yet create it."
        ((string= clangd-inactive-regions-method "darken-foreground")
         (with-silent-modifications
           (put-text-property beg end 'clangd-inactive-region t))
-        (font-lock-flush beg end))
+        (font-lock-flush))
        ((string= clangd-inactive-regions-method "shadow")
         (let ((ov (make-overlay beg end)))
           (overlay-put ov 'face 'clangd-inactive-regions-shadow-face)
