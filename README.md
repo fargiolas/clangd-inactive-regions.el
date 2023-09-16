@@ -16,11 +16,13 @@ the available-methods:
 
 ## Screenshots
 
-#### `darken-foreground` method, gruvbox dark theme
+#### `darken-foreground` method, gruvbox dark theme, 30% opacity
+
+Inactive regions are provided by the language server so they will honor your include paths and compile time defines. Here I'm looking at my `emacs-29` branch configured to build on macos.
 
 ![darken-foreground](./screenshots/darken-foreground-gruvbox-dark.png)
 
-#### `shade-background` method, modus operandi theme
+#### `shade-background` method, modus operandi theme, 10% shading
 
 ![shade-background](./screenshots/shade-background-modus-operandi.png)
 
@@ -47,10 +49,10 @@ Feedback, issues and pull requests more than welcome!
 
 As far as I know Emacs doesn't have a way to set foreground text
 opacity. Best would be a face attribute so that you can set it in an
-overlay covering the whole inactive regions and be done with it.
+overlay covering each whole region and be done with it.
 
-So `darken-foreground` method is a fragile and inefficient hack around
-fontification that for each inactive region looks for symbols with
+Hence `darken-foreground` method is a fragile and inefficient hack around
+fontification: for each inactive region looks for symbols with
 different faces and applies to each of them a different overlay with a
 dimmed foreground color.
 
