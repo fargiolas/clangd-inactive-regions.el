@@ -66,17 +66,6 @@ Allowed methods:
   '((t (:extend t)))
   "Face used to inactive code with shade-background method.")
 
-(define-minor-mode clangd-inactive-regions-mode
-  ""
-  :global nil
-  (cond (clangd-inactive-regions-mode
-         (add-function :after (default-value 'font-lock-fontify-region-function)
-                       #'clangd-inactive-regions--fontify))
-        (t
-         (remove-function (default-value 'font-lock-fontify-region-function)
-                          #'clangd-inactive-regions--fontify)
-         (clangd-inactive-regions-cleanup))))
-
 (defun clangd-inactive-regions-set-method (method)
   (interactive
    (list (let ((completion-ignore-case t)
@@ -242,14 +231,33 @@ foreground colors, if the face doesn't exist yet create it."
           (push ov clangd-inactive-regions--overlays)))))))
 
 
-(cl-defmethod eglot-client-capabilities :around (server)
-  (let ((base (cl-call-next-method)))
-    (when (cl-find "clangd" (process-command (jsonrpc--process server))
-                   :test #'string-match)
-      (setf (cl-getf (cl-getf base :textDocument)
-                     :inactiveRegionsCapabilities)
-            '(:inactiveRegions t)))
-    base))
+(define-minor-mode clangd-inactive-regions-mode
+  "Minor mode to enable Eglot support for clangd inactiveRegions extension."
+  :global nil
+  (cond (clangd-inactive-regions-mode
+         (clangd-inactive-regions--enable))
+        (t
+         (clangd-inactive-regions--disable))))
+
+(defun clangd-inactive-regions--enable ()
+  (add-function :after (default-value 'font-lock-fontify-region-function)
+                #'clangd-inactive-regions--fontify)
+
+  (cl-defmethod eglot-client-capabilities :around (server)
+    (let ((base (cl-call-next-method)))
+      (when (cl-find "clangd" (process-command (jsonrpc--process server))
+                     :test #'string-match)
+        (setf (cl-getf (cl-getf base :textDocument)
+                       :inactiveRegionsCapabilities)
+              '(:inactiveRegions t)))
+      base)))
+
+(defun clangd-inactive-regions--disable ()
+  (remove-function (default-value 'font-lock-fontify-region-function)
+                   #'clangd-inactive-regions--fontify)
+  (clangd-inactive-regions-cleanup)
+  (cl-defmethod eglot-client-capabilities :around (server)
+    (cl-call-next-method)))
 
 (cl-defmethod eglot-handle-notification
   (_server (_method (eql textDocument/inactiveRegions))
