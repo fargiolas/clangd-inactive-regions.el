@@ -241,8 +241,11 @@ foreground colors, if the face doesn't exist yet create it."
          (clangd-inactive-regions--disable))))
 
 (defun clangd-inactive-regions--enable ()
-  (add-function :after (default-value 'font-lock-fontify-region-function)
-                #'clangd-inactive-regions--fontify)
+  (if (memq major-mode '(c-mode c++-mode))
+      (add-function :after (default-value 'font-lock-fontify-region-function)
+                    #'clangd-inactive-regions--fontify)
+    (add-function :after (local 'font-lock-fontify-region-function)
+                  #'clangd-inactive-regions--fontify))
 
   (cl-defmethod eglot-client-capabilities :around (server)
     (let ((base (cl-call-next-method)))
@@ -253,9 +256,22 @@ foreground colors, if the face doesn't exist yet create it."
               '(:inactiveRegions t)))
       base)))
 
+(defun clangd-inactive-regions--enabled-anywhere ()
+  (let ((enabled nil))
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (and (memq major-mode '(c-mode c++-mode))
+             (clangd-inactive-regions-mode)
+             (setq enabled t))))
+    enabled))
+
 (defun clangd-inactive-regions--disable ()
-  (remove-function (default-value 'font-lock-fontify-region-function)
-                   #'clangd-inactive-regions--fontify)
+  (if (memq major-mode '(c-mode c++-mode))
+      (unless (clangd-inactive-regions--enabled-anywhere)
+        (remove-function (default-value 'font-lock-fontify-region-function)
+                         #'clangd-inactive-regions--fontify))
+    (remove-function (local 'font-lock-fontify-region-function)
+                     #'clangd-inactive-regions--fontify))
   (clangd-inactive-regions-cleanup)
   (cl-defmethod eglot-client-capabilities :around (server)
     (cl-call-next-method)))
