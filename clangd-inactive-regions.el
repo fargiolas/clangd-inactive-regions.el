@@ -156,51 +156,52 @@ foreground colors, if the face doesn't exist yet create it."
   ;; functions takes care of extending the region to something
   ;; syntactically relevant... guess we need to do the same, extend to
   ;; cover whole lines seems to work with c modes
-  (save-excursion
-    (save-restriction
-      (widen)
-      (goto-char end)
-      (when (not (eolp))
-        (end-of-line)
-        (setq end (point)))
+  (when clangd-inactive-regions-mode
+    (save-excursion
+      (save-restriction
+        (widen)
+        (goto-char end)
+        (when (not (eolp))
+          (end-of-line)
+          (setq end (point)))
 
-      (goto-char start)
-      (when (not (bolp))
-        (beginning-of-line)
-        (setq start (point)))))
+        (goto-char start)
+        (when (not (bolp))
+          (beginning-of-line)
+          (setq start (point)))))
 
-  ;; find the inactive region inside the region to fontify
-  (while (and start (< start end))
-    (setq from (or (text-property-any start end 'clangd-inactive-region t)
-                    end))
-    (setq to (or (text-property-any from end 'clangd-inactive-region nil)
-                 end))
+    ;; find the inactive region inside the region to fontify
+    (while (and start (< start end))
+      (setq from (or (text-property-any start end 'clangd-inactive-region t)
+                     end))
+      (setq to (or (text-property-any from end 'clangd-inactive-region nil)
+                   end))
 
-    ;; the idea here is to iterate through the region by syntax
-    ;; blocks, derive a new face from current one with dimmed
-    ;; foreground and apply the new face with an overlay
+      ;; the idea here is to iterate through the region by syntax
+      ;; blocks, derive a new face from current one with dimmed
+      ;; foreground and apply the new face with an overlay
 
-    ;; there is some overlay duplication for regions extended by the
-    ;; above code but they will only live until the next inactive
-    ;; region update and don't seem to cause much issues... will keep
-    ;; an eye on it while I find a solution
-    (setq beg from)
-    (when (> to from)
-      (save-excursion
-        (save-restriction
-          (widen)
-          (goto-char from)
-          (while (<= (point) to)
-            (forward-face-or-whitepace)
-            ;; no need to dim whitespace
-            (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
-              (let* ((cur-face (clangd-inactive-regions--get-face (1- (point))))
-                     (clangd-inactive-face (clangd-inactive-regions--make-darken-face cur-face)))
-                (let* ((ov (make-overlay beg (point))))
-                  (overlay-put ov 'face clangd-inactive-face)
-                  (push ov clangd-inactive-regions--overlays))))
-            (setq beg (point))))))
-    (setq start to)))
+      ;; there is some overlay duplication for regions extended by the
+      ;; above code but they will only live until the next inactive
+      ;; region update and don't seem to cause much issues... will keep
+      ;; an eye on it while I find a solution
+      (setq beg from)
+      (when (> to from)
+        (save-excursion
+          (save-restriction
+            (widen)
+            (goto-char from)
+            (while (<= (point) to)
+              (forward-face-or-whitepace)
+              ;; no need to dim whitespace
+              (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
+                (let* ((cur-face (clangd-inactive-regions--get-face (1- (point))))
+                       (clangd-inactive-face (clangd-inactive-regions--make-darken-face cur-face)))
+                  (let* ((ov (make-overlay beg (point))))
+                    (overlay-put ov 'face clangd-inactive-face)
+                    (push ov clangd-inactive-regions--overlays))))
+              (setq beg (point))))))
+      (setq start to))))
 
 (defun clangd-inactive-regions-refresh ()
   "Force a refresh of known inactive regions without waiting for a
