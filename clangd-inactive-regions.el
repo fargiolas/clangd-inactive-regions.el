@@ -1,4 +1,4 @@
-;;; clangd-inactive-regions.el -*- lexical-binding: t; -*-
+;;; clangd-inactive-regions.el --- Highlight inactive code regions with clangd power   -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2023 Filippo Argiolas <filippo.argiolas@gmail.com>
 ;; Based on an example implementation from João Távora <joaotavora@gmail.com> (see bug#65418)
@@ -6,7 +6,7 @@
 ;; Author: Filippo Argiolas <filippo.argiolas@gmail.com>
 ;; Version: 0.2
 ;; URL: https://github.com/fargiolas/clangd-inactive-regions
-;; Package-Requires: ((eglot))
+;; Package-Requires: ((emacs "29.1"))
 
 ;; clangd-inactive-regions.el is free software: you can redistribute
 ;; it and/or modify it under the terms of the GNU General Public
@@ -141,7 +141,7 @@ foreground colors, if the face doesn't exist yet create it."
 
     clangd-inactive-face))
 
-(defun forward-face-or-whitepace ()
+(defun clangd-inactive-regions--forward-face-or-whitespace ()
   (setq prev-face (get-text-property (point) 'face))
   (forward-char)
   (setq next-face (get-text-property (point) 'face))
@@ -192,7 +192,7 @@ foreground colors, if the face doesn't exist yet create it."
             (widen)
             (goto-char from)
             (while (<= (point) to)
-              (forward-face-or-whitepace)
+              (clangd-inactive-regions--forward-face-or-whitespace)
               ;; no need to dim whitespace
               (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
                 (let* ((cur-face (clangd-inactive-regions--get-face (1- (point))))
