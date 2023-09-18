@@ -2,8 +2,11 @@
 
 ## About
 
-An eglot extension to support clangd inactiveRegions extension
-introduced in clangd-17. Highlights inactive code in a LSP aware way.
+Eglot extension to support the new clangd inactiveRegions LSP
+capability introduced in clangd-17.
+
+Highlights inactive code in a LSP aware way, taking into account
+compile time includes and defines for current project.
 
 Listens to inactiveRegions notifications and shades them with one of
 the available-methods:
@@ -18,7 +21,10 @@ the available-methods:
 
 #### `darken-foreground` method, gruvbox dark theme, 30% opacity
 
-Inactive regions are provided by the language server so they will honor your include paths and compile time defines. Here I'm looking at my `emacs-29` branch configured to build on macos.
+Inactive regions are provided by the language server so they will
+honor your include paths and compile time defines. Here I'm looking at
+my `emacs-29` branch configured to build on MacOS and you can see
+Windows code is correctly disabled.
 
 ![darken-foreground](./screenshots/darken-foreground-gruvbox-dark.png)
 
@@ -27,6 +33,10 @@ Inactive regions are provided by the language server so they will honor your inc
 ![shade-background](./screenshots/shade-background-modus-operandi.png)
 
 ## Installation
+
+You will need emacs 29.1 and clangd-17. The latter is not released yet
+but they provide git snapshots with standalone binaries you can just
+copy in your path.
 
 At the moment the package is little more than an experiment. If you
 want to try it just copy the .el file somewhere in the load path.
@@ -49,10 +59,11 @@ Feedback, issues and pull requests more than welcome!
 
 As far as I know Emacs doesn't have a way to set foreground text
 opacity. Best would be a face attribute so that you can set it in an
-overlay covering each whole region and be done with it.
+overlay covering each whole region and be done with it. Unfortunately
+there is no attribute for this yet.
 
 Hence `darken-foreground` method is a fragile and inefficient hack around
-fontification: for each inactive region looks for symbols with
+fontification: for each inactive region it looks for symbols with
 different faces and applies to each of them a different overlay with a
 dimmed foreground color.
 
