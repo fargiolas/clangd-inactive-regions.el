@@ -149,7 +149,9 @@ If the correspondend \"clangd-inactive\" face doesn't not exist yet create it."
 
 (defun clangd-inactive-regions--forward-face-or-whitespace ()
   "Forward to the next face change.
-Some mode uses `default' face for both generic keywords and whitespace while some other uses nil for whitespace.  Either way we don't want to includ whitespace in fontification."
+Some mode uses `default' face for both generic keywords and
+whitespace while some other uses nil for whitespace.  Either way
+we don't want to includ whitespace in fontification."
   (setq prev-face (get-text-property (point) 'face))
   (forward-char)
   (setq next-face (get-text-property (point) 'face))
