@@ -13,7 +13,7 @@ the available-methods:
 
 * `darken-foreground` makes inactive code semitransparent blending
   current foreground and background colors
-* `shade-background` makes inactive code background slighly darker or
+* `shade-background` makes inactive code background slightly darker or
   lighter depending on current theme
 * `shadow` applies the shadow face to inactive code
 
@@ -34,7 +34,7 @@ Windows code is correctly disabled.
 
 ## Installation
 
-You will need at least emacs 29.1 and clangd-17 (included in latest llvm 17 release or available as a standalone binary from their github snapshots).
+You will need at least emacs 29.1 and clangd-17.
 
 At the moment the package is little more than an experiment. If you
 want to try it just copy the .el file somewhere in the load path.
