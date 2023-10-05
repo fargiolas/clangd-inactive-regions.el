@@ -4,7 +4,7 @@
 ;; Based on an example implementation from João Távora <joaotavora@gmail.com> (see bug#65418)
 
 ;; Author: Filippo Argiolas <filippo.argiolas@gmail.com>
-;; Version: 0.2
+;; Version: 0.3
 ;; URL: https://github.com/fargiolas/clangd-inactive-regions
 ;; Package-Requires: ((emacs "29.1"))
 
