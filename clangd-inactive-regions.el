@@ -66,6 +66,14 @@ Allowed methods:
   '((t (:extend t)))
   "Face used to inactive code with shade-background method.")
 
+(define-minor-mode clangd-inactive-regions-mode
+  "Minor mode to enable Eglot support for clangd inactiveRegions extension."
+  :global nil
+  (cond (clangd-inactive-regions-mode
+         (clangd-inactive-regions--enable))
+        (t
+         (clangd-inactive-regions--disable))))
+
 (defun clangd-inactive-regions-set-method (method)
 "Interactively select a shading METHOD to render inactive code regions."
   (interactive
@@ -152,14 +160,14 @@ If the correspondend \"clangd-inactive\" face doesn't not exist yet create it."
 Some mode uses `default' face for both generic keywords and
 whitespace while some other uses nil for whitespace.  Either way
 we don't want to includ whitespace in fontification."
-  (setq prev-face (get-text-property (point) 'face))
-  (forward-char)
-  (setq next-face (get-text-property (point) 'face))
-  (while (and (eq prev-face next-face)
-              (not (thing-at-point 'whitespace)))
-    (setq prev-face (get-text-property (point) 'face))
-    (forward-char)
-    (setq next-face (get-text-property (point) 'face))))
+  (let* ((prev-face (get-text-property (point) 'face))
+         (_ (forward-char))
+         (next-face (get-text-property (point) 'face)))
+    (while (and (eq prev-face next-face)
+                (not (thing-at-point 'whitespace)))
+      (setq prev-face (get-text-property (point) 'face))
+      (forward-char)
+      (setq next-face (get-text-property (point) 'face)))))
 
 (defun clangd-inactive-regions--fontify (start end &optional verbose)
   "Fontify inactive region with semitransparent faces."
@@ -167,6 +175,7 @@ we don't want to includ whitespace in fontification."
   ;; functions takes care of extending the region to something
   ;; syntactically relevant... guess we need to do the same, extend to
   ;; cover whole lines seems to work with c modes
+  (ignore verbose)
   (when clangd-inactive-regions-mode
     (save-excursion
       (save-restriction
@@ -183,36 +192,33 @@ we don't want to includ whitespace in fontification."
 
     ;; find the inactive region inside the region to fontify
     (while (and start (< start end))
-      (setq from (or (text-property-any start end 'clangd-inactive-region t)
-                     end))
-      (setq to (or (text-property-any from end 'clangd-inactive-region nil)
-                   end))
+      (let* ((from (or (text-property-any start end 'clangd-inactive-region t) end))
+             (to (or (text-property-any from end 'clangd-inactive-region nil) end))
+             (beg from))
+        ;; the idea here is to iterate through the region by syntax
+        ;; blocks, derive a new face from current one with dimmed
+        ;; foreground and apply the new face with an overlay
 
-      ;; the idea here is to iterate through the region by syntax
-      ;; blocks, derive a new face from current one with dimmed
-      ;; foreground and apply the new face with an overlay
-
-      ;; there is some overlay duplication for regions extended by the
-      ;; above code but they will only live until the next inactive
-      ;; region update and don't seem to cause much issues... will keep
-      ;; an eye on it while I find a solution
-      (setq beg from)
-      (when (> to from)
-        (save-excursion
-          (save-restriction
-            (widen)
-            (goto-char from)
-            (while (<= (point) to)
-              (clangd-inactive-regions--forward-face-or-whitespace)
-              ;; no need to dim whitespace
-              (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
-                (let* ((cur-face (clangd-inactive-regions--get-face (1- (point))))
-                       (clangd-inactive-face (clangd-inactive-regions--make-darken-face cur-face)))
-                  (let* ((ov (make-overlay beg (point))))
-                    (overlay-put ov 'face clangd-inactive-face)
-                    (push ov clangd-inactive-regions--overlays))))
-              (setq beg (point))))))
-      (setq start to))))
+        ;; there is some overlay duplication for regions extended by the
+        ;; above code but they will only live until the next inactive
+        ;; region update and don't seem to cause much issues... will keep
+        ;; an eye on it while I find a solution
+        (when (> to from)
+          (save-excursion
+            (save-restriction
+              (widen)
+              (goto-char from)
+              (while (<= (point) to)
+                (clangd-inactive-regions--forward-face-or-whitespace)
+                ;; no need to dim whitespace
+                (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
+                  (let* ((cur-face (clangd-inactive-regions--get-face (1- (point))))
+                         (clangd-inactive-face (clangd-inactive-regions--make-darken-face cur-face)))
+                    (let* ((ov (make-overlay beg (point))))
+                      (overlay-put ov 'face clangd-inactive-face)
+                      (push ov clangd-inactive-regions--overlays))))
+                (setq beg (point))))))
+        (setq start to)))))
 
 (defun clangd-inactive-regions-refresh ()
   "Force a refresh of known inactive regions.
@@ -240,16 +246,6 @@ Useful to update colors after a face or theme change."
         (let ((ov (make-overlay beg (1+ end))))
           (overlay-put ov 'face 'clangd-inactive-regions-shade-face)
           (push ov clangd-inactive-regions--overlays)))))))
-
-
-(define-minor-mode clangd-inactive-regions-mode
-  "Minor mode to enable Eglot support for clangd inactiveRegions extension."
-  :global nil
-  (cond (clangd-inactive-regions-mode
-         (clangd-inactive-regions--enable))
-        (t
-         (clangd-inactive-regions--disable))))
-
 
 ;; FIXME: cc-mode.el replaces local fontify-region-function with one
 ;; that extends it contextually to a syntactially relevant bigger
@@ -298,7 +294,7 @@ Useful to update colors after a face or theme change."
                      #'clangd-inactive-regions--fontify))
   (clangd-inactive-regions-cleanup)
   (cl-defmethod eglot-client-capabilities :around (server)
-    (cl-call-next-method)))
+    (cl-call-next-method server)))
 
 (cl-defmethod eglot-handle-notification
   (_server (_method (eql textDocument/inactiveRegions))
