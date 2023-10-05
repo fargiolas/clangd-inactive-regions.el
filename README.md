@@ -34,9 +34,7 @@ Windows code is correctly disabled.
 
 ## Installation
 
-You will need emacs 29.1 and clangd-17. The latter is not released yet
-but they provide git snapshots with standalone binaries you can just
-copy in your path.
+You will need at least emacs 29.1 and clangd-17 (included in latest llvm 17 release or available as a standalone binary from their github snapshots).
 
 At the moment the package is little more than an experiment. If you
 want to try it just copy the .el file somewhere in the load path.
