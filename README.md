@@ -44,12 +44,15 @@ Feedback, issues and pull requests more than welcome!
 ## Usage
 
 ```lisp
+(unless (package-installed-p 'clangd-inactive-regions)
+  (package-vc-install "https://github.com/fargiolas/clangd-inactive-regions.el"))
+
 (use-package clangd-inactive-regions
-  :ensure nil
   :init
-  (setq clangd-inactive-regions-method "darken-foreground")
-  (setq clangd-inactive-regions-opacity 0.55)
-  (add-hook 'eglot-managed-mode-hook #'clangd-inactive-regions-mode))
+  (add-hook 'eglot-managed-mode-hook #'clangd-inactive-regions-mode)
+  :config
+  (clangd-inactive-regions-set-method "darken-foreground")
+  (clangd-inactive-regions-set-opacity 0.55))
 ```
 
 
