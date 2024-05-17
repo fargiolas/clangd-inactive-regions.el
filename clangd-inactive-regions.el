@@ -1,10 +1,11 @@
 ;;; clangd-inactive-regions.el --- Highlight inactive code regions with clangd power   -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2023 Filippo Argiolas <filippo.argiolas@gmail.com>
-;; Based on an example implementation from João Távora <joaotavora@gmail.com> (see bug#65418)
+;; Based on an example implementation from João Távora
+;; <joaotavora@gmail.com> (see bug#65418)
 
 ;; Author: Filippo Argiolas <filippo.argiolas@gmail.com>
-;; Version: 0.3
+;; Version: 0.4
 ;; URL: https://github.com/fargiolas/clangd-inactive-regions
 ;; Package-Requires: ((emacs "29.1"))
 
@@ -42,14 +43,14 @@
 
 (defvar clangd-inactive-regions-opacity 0.55
   "Blending factor for the `darken-foreground' method.
-Used to mix foreground and background color and apply to the
-foreground of the inactive region.  The lower the blending factor
-the more text will look dim.")
+Used to mix foreground and background colors and apply to the foreground
+face of the inactive region.  The lower the blending factor the more
+text will look dim.")
 
 (defvar clangd-inactive-regions-shading 0.08
   "Blending factor for the `shade-background' method.
-Used to mix background and foreground and shade inactive region
-background.  The higher the less visible the shading will be.")
+Used to mix background and foreground colors and shade inactive region
+background face.  The higher the less visible the shading will be.")
 
 (defvar clangd-inactive-regions-method "darken-foreground"
   "Shading method to apply to the inactive code regions.
@@ -60,11 +61,11 @@ Allowed methods:
 
 (defface clangd-inactive-regions-shadow-face
   '((t (:inherit shadow)))
-  "Face used to inactive code with shadow method.")
+  "Base face used to fontify inactive code when `shadow' method is enabled.")
 
 (defface clangd-inactive-regions-shade-face
   '((t (:extend t)))
-  "Face used to inactive code with shade-background method.")
+  "Base face used to fontify inactive code when `shade-background' method is enabled.")
 
 (define-minor-mode clangd-inactive-regions-mode
   "Minor mode to enable Eglot support for clangd inactiveRegions extension."
@@ -90,7 +91,7 @@ Allowed methods:
   "Interactively set a new OPACITY value for inactive regions.
 Only applies when `darken-foreground' method is enabled."
   (interactive "nNew inactive region foreground color opacity [0-1.0]: ")
-  (unless (and (>= opacity 0.0) (< opacity 1.0))
+  (unless (and (>= opacity 0.0) (<= opacity 1.0))
     (error "Opacity should be between 0.0 and 1.0"))
   (setq clangd-inactive-regions-opacity opacity)
   (when (clangd-inactive-regions-mode)
@@ -100,7 +101,7 @@ Only applies when `darken-foreground' method is enabled."
   "Interactively set a new SHADING value for inactive regions.
 Only applies when `shade-background' method is enabled."
   (interactive "nNew inactive region background color shading [0-1.0]: ")
-  (unless (and (>= shading 0.0) (< shading 1.0))
+  (unless (and (>= shading 0.0) (<= shading 1.0))
     (error "Shading factor should be between 0.0 and 1.0"))
   (setq clangd-inactive-regions-shading shading)
   (when (clangd-inactive-regions-mode)
@@ -159,7 +160,7 @@ If the correspondend \"clangd-inactive\" face doesn't not exist yet create it."
   "Forward to the next face change.
 Some mode uses `default' face for both generic keywords and
 whitespace while some other uses nil for whitespace.  Either way
-we don't want to includ whitespace in fontification."
+we don't want to include whitespace in fontification."
   (let* ((prev-face (get-text-property (point) 'face))
          (_ (forward-char))
          (next-face (get-text-property (point) 'face)))
