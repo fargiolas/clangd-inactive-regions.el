@@ -34,19 +34,16 @@ Windows code is correctly disabled.
 
 ## Installation
 
+```lisp
+(unless (package-installed-p 'clangd-inactive-regions)
+  (package-vc-install "https://github.com/fargiolas/clangd-inactive-regions.el"))
+```
+
 You will need at least emacs 29.1 and clangd-17.
-
-At the moment the package is little more than an experiment. If you
-want to try it just copy the .el file somewhere in the load path.
-
-Feedback, issues and pull requests more than welcome!
 
 ## Usage
 
 ```lisp
-(unless (package-installed-p 'clangd-inactive-regions)
-  (package-vc-install "https://github.com/fargiolas/clangd-inactive-regions.el"))
-
 (use-package clangd-inactive-regions
   :init
   (add-hook 'eglot-managed-mode-hook #'clangd-inactive-regions-mode)
@@ -60,7 +57,7 @@ Feedback, issues and pull requests more than welcome!
 
 As far as I know Emacs doesn't have a way to set foreground text
 opacity. Best would be a face attribute so that you can set it in an
-overlay covering each whole region and be done with it. Unfortunately
+overlay covering each inactive region and be done with it. Unfortunately
 there is no attribute for this yet.
 
 Hence `darken-foreground` method is a fragile and inefficient hack around
@@ -68,7 +65,8 @@ fontification: for each inactive region it looks for symbols with
 different faces and applies to each of them a different overlay with a
 dimmed foreground color.
 
-It seems to work with cc and c-ts modes (albeit a little slower than
-I'd like) but could totally break other modes or features I'm not aware of.
+It seems to work with cc and c-ts modes and I've been using it daily
+for more than a year now, but could totally break other modes or
+features I'm not aware of.
 
 If you know a better way please do let me know.

@@ -1,12 +1,12 @@
 ;;; clangd-inactive-regions.el --- Highlight inactive code regions with clangd power   -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2023 Filippo Argiolas <filippo.argiolas@gmail.com>
+;; Copyright (C) 2024 Filippo Argiolas <filippo.argiolas@gmail.com>
 ;; Based on an example implementation from João Távora
 ;; <joaotavora@gmail.com> (see bug#65418)
 
 ;; Author: Filippo Argiolas <filippo.argiolas@gmail.com>
-;; Version: 0.4
-;; URL: https://github.com/fargiolas/clangd-inactive-regions
+;; Version: 0.5
+;; URL: https://github.com/fargiolas/clangd-inactive-regions.el
 ;; Package-Requires: ((emacs "29.1"))
 
 ;; clangd-inactive-regions.el is free software: you can redistribute
@@ -61,11 +61,11 @@ Allowed methods:
 
 (defface clangd-inactive-regions-shadow-face
   '((t (:inherit shadow)))
-  "Base face used to fontify inactive code when `shadow' method is enabled.")
+  "Base face used to fontify inactive code with `shadow' method.")
 
 (defface clangd-inactive-regions-shade-face
   '((t (:extend t)))
-  "Base face used to fontify inactive code when `shade-background' method is enabled.")
+  "Base face used to fontify inactive code with `shade-background' method.")
 
 (define-minor-mode clangd-inactive-regions-mode
   "Minor mode to enable Eglot support for clangd inactiveRegions extension."
@@ -76,7 +76,7 @@ Allowed methods:
          (clangd-inactive-regions--disable))))
 
 (defun clangd-inactive-regions-set-method (method)
-"Interactively select a shading METHOD to render inactive code regions."
+  "Interactively select a shading METHOD to render inactive code regions."
   (interactive
    (list (let ((completion-ignore-case t)
 	       (prompt "Set inactive regions shading method: "))
@@ -89,7 +89,7 @@ Allowed methods:
 
 (defun clangd-inactive-regions-set-opacity (opacity)
   "Interactively set a new OPACITY value for inactive regions.
-Only applies when `darken-foreground' method is enabled."
+Only applies to `darken-foreground' method."
   (interactive "nNew inactive region foreground color opacity [0-1.0]: ")
   (unless (and (>= opacity 0.0) (<= opacity 1.0))
     (error "Opacity should be between 0.0 and 1.0"))
@@ -99,7 +99,7 @@ Only applies when `darken-foreground' method is enabled."
 
 (defun clangd-inactive-regions-set-shading (shading)
   "Interactively set a new SHADING value for inactive regions.
-Only applies when `shade-background' method is enabled."
+Only applies to `shade-background' method."
   (interactive "nNew inactive region background color shading [0-1.0]: ")
   (unless (and (>= shading 0.0) (<= shading 1.0))
     (error "Shading factor should be between 0.0 and 1.0"))
@@ -171,7 +171,7 @@ we don't want to include whitespace in fontification."
       (setq next-face (get-text-property (point) 'face)))))
 
 (defun clangd-inactive-regions--fontify (start end &optional verbose)
-  "Fontify inactive region with semitransparent faces."
+  "Fontify inactive region (START END) with semitransparent faces."
   ;; sometimes font lock fontifies in chunks and each fontification
   ;; functions takes care of extending the region to something
   ;; syntactically relevant... guess we need to do the same, extend to
@@ -248,15 +248,15 @@ Useful to update colors after a face or theme change."
           (overlay-put ov 'face 'clangd-inactive-regions-shade-face)
           (push ov clangd-inactive-regions--overlays)))))))
 
-;; FIXME: cc-mode.el replaces local fontify-region-function with one
-;; that extends it contextually to a syntactially relevant bigger
-;; region. Then it calls the global fontify-region-function on the new
-;; region boundaries. So if we want to get the extended region we need
-;; to advice the global function while our mode is inherently a buffer
-;; local one. Only limit this to c-mode and c++-mode while I look for
-;; a better alternative.
 (defun clangd-inactive-regions--enable ()
   "Helper method to enable inactive regions minor mode."
+  ;; FIXME: cc-mode.el replaces local fontify-region-function with one
+  ;; that extends it contextually to a syntactially relevant bigger
+  ;; region. Then it calls the global fontify-region-function on the new
+  ;; region boundaries. So if we want to get the extended region we need
+  ;; to advice the global function while our mode is inherently a buffer
+  ;; local one. Only limit this to c-mode and c++-mode while I look for
+  ;; a better alternative.
   (if (memq major-mode '(c-mode c++-mode))
       (add-function :after (default-value 'font-lock-fontify-region-function)
                     #'clangd-inactive-regions--fontify)
@@ -272,7 +272,7 @@ Useful to update colors after a face or theme change."
               '(:inactiveRegions t)))
       base)))
 
-(defun clangd-inactive-regions--enabled-anywhere ()
+(defun clangd-inactive-regions--enabled-anywhere-p ()
   "Check if our mode is enabled in any classic C mode buffers."
   (let ((enabled nil))
     (dolist (buffer (buffer-list))
@@ -288,7 +288,7 @@ Useful to update colors after a face or theme change."
 (defun clangd-inactive-regions--disable ()
   "Helper method to enable inactive regions minor mode."
   (if (memq major-mode '(c-mode c++-mode))
-      (unless (clangd-inactive-regions--enabled-anywhere)
+      (unless (clangd-inactive-regions--enabled-anywhere-p)
         (remove-function (default-value 'font-lock-fontify-region-function)
                          #'clangd-inactive-regions--fontify))
     (remove-function (local 'font-lock-fontify-region-function)
@@ -301,7 +301,7 @@ Useful to update colors after a face or theme change."
   (_server (_method (eql textDocument/inactiveRegions))
            &key regions textDocument &allow-other-keys)
   "Update inactive regions when clangd reports them."
-    (if-let* ((path (expand-file-name (eglot--uri-to-path
+    (if-let* ((path (expand-file-name (eglot-uri-to-path
                                        (cl-getf textDocument :uri))))
               (buffer (find-buffer-visiting path)))
         (with-current-buffer buffer
@@ -309,7 +309,7 @@ Useful to update colors after a face or theme change."
             (setq clangd-inactive-regions--ranges '())
             (cl-loop
              for r across regions
-             for (beg . end) = (eglot--range-region r)
+             for (beg . end) = (eglot-range-region r)
              do
              (push (cons beg end) clangd-inactive-regions--ranges))
             (clangd-inactive-regions-refresh)))))
