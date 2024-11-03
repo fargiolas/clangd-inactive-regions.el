@@ -261,16 +261,7 @@ Useful to update colors after a face or theme change."
       (add-function :after (default-value 'font-lock-fontify-region-function)
                     #'clangd-inactive-regions--fontify)
     (add-function :after (local 'font-lock-fontify-region-function)
-                  #'clangd-inactive-regions--fontify))
-
-  (cl-defmethod eglot-client-capabilities :around (server)
-    (let ((base (cl-call-next-method)))
-      (when (cl-find "clangd" (process-command (jsonrpc--process server))
-                     :test #'string-match)
-        (setf (cl-getf (cl-getf base :textDocument)
-                       :inactiveRegionsCapabilities)
-              '(:inactiveRegions t)))
-      base)))
+                  #'clangd-inactive-regions--fontify)))
 
 (defun clangd-inactive-regions--enabled-anywhere-p ()
   "Check if our mode is enabled in any classic C mode buffers."
@@ -293,9 +284,16 @@ Useful to update colors after a face or theme change."
                          #'clangd-inactive-regions--fontify))
     (remove-function (local 'font-lock-fontify-region-function)
                      #'clangd-inactive-regions--fontify))
-  (clangd-inactive-regions-cleanup)
-  (cl-defmethod eglot-client-capabilities :around (server)
-    (cl-call-next-method server)))
+  (clangd-inactive-regions-cleanup))
+
+(cl-defmethod eglot-client-capabilities :around (server)
+  (let ((base (cl-call-next-method)))
+    (when (cl-find "clangd" (process-command (jsonrpc--process server))
+                   :test #'string-match)
+      (setf (cl-getf (cl-getf base :textDocument)
+                     :inactiveRegionsCapabilities)
+            '(:inactiveRegions t)))
+    base))
 
 (cl-defmethod eglot-handle-notification
   (_server (_method (eql textDocument/inactiveRegions))
