@@ -114,12 +114,11 @@ factor."
   (let ((from-rgb (color-name-to-rgb from-color))
         (to-rgb (color-name-to-rgb to-color))
         (alpha (min 1.0 (max 0.0 alpha))))
-    (apply 'format
-           "#%02x%02x%02x"
-           (cl-mapcar #'(lambda (a b)
-                          (truncate (* 255 (+ (* a alpha)
-                                              (* b (- 1.0 alpha))))))
-                      from-rgb to-rgb))))
+    (if (and from-rgb to-rgb)
+      (apply 'color-rgb-to-hex
+             (cl-mapcar #'(lambda (a b) (+ (* a alpha) (* b (- 1.0 alpha))))
+                        from-rgb to-rgb))
+      'unspecified)))
 
 (defun clangd-inactive-regions-cleanup ()
   "Clean up inactive regions."
