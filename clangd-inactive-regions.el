@@ -84,7 +84,7 @@ Allowed methods:
   (unless (member method clangd-inactive-regions--methods)
     (error "Unknown shading method: %s" method))
   (setq clangd-inactive-regions-method method)
-  (when (clangd-inactive-regions-mode)
+  (when clangd-inactive-regions-mode
     (clangd-inactive-regions-refresh)))
 
 (defun clangd-inactive-regions-set-opacity (opacity)
@@ -94,7 +94,7 @@ Only applies to `darken-foreground' method."
   (unless (and (>= opacity 0.0) (<= opacity 1.0))
     (error "Opacity should be between 0.0 and 1.0"))
   (setq clangd-inactive-regions-opacity opacity)
-  (when (clangd-inactive-regions-mode)
+  (when clangd-inactive-regions-mode
     (clangd-inactive-regions-refresh)))
 
 (defun clangd-inactive-regions-set-shading (shading)
@@ -104,7 +104,7 @@ Only applies to `shade-background' method."
   (unless (and (>= shading 0.0) (<= shading 1.0))
     (error "Shading factor should be between 0.0 and 1.0"))
   (setq clangd-inactive-regions-shading shading)
-  (when (clangd-inactive-regions-mode)
+  (when clangd-inactive-regions-mode
     (clangd-inactive-regions-refresh)))
 
 (defun clangd-inactive-regions--color-blend (from-color to-color alpha)
@@ -176,7 +176,8 @@ we don't want to include whitespace in fontification."
   ;; syntactically relevant... guess we need to do the same, extend to
   ;; cover whole lines seems to work with c modes
   (ignore verbose)
-  (when clangd-inactive-regions-mode
+  (when (and clangd-inactive-regions-mode
+             (string= clangd-inactive-regions-method "darken-foreground"))
     (save-excursion
       (save-restriction
         (widen)
@@ -277,7 +278,7 @@ Useful to update colors after a face or theme change."
     (dolist (buffer (buffer-list))
       (with-current-buffer buffer
         (and (memq major-mode '(c-mode c++-mode))
-             (clangd-inactive-regions-mode)
+             clangd-inactive-regions-mode
              (setq enabled t))))
     enabled))
 
