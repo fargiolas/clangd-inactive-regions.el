@@ -37,10 +37,6 @@
 (require 'color)
 (require 'font-lock)
 
-(defvar-local clangd-inactive-regions--overlays '())
-(defvar-local clangd-inactive-regions--ranges '())
-(defvar clangd-inactive-regions--methods '("darken-foreground" "shade-background" "shadow"))
-
 (defvar clangd-inactive-regions-opacity 0.55
   "Blending factor for the `darken-foreground' method.
 Used to mix foreground and background colors and apply to the foreground
@@ -59,6 +55,15 @@ Allowed methods:
 - shade-background: shade background color
 - shadow: apply shadow face.")
 
+(defvar-local clangd-inactive-regions--overlays '())
+(setq-default clangd-inactive-regions--overlays '())
+(defvar-local clangd-inactive-regions--ranges '())
+(setq-default clangd-inactive-regions--ranges '())
+(defvar-local clangd-inactive-regions--active nil)
+(setq-default clangd-inactive-regions--active nil)
+
+(defvar clangd-inactive-regions--methods '("darken-foreground" "shade-background" "shadow"))
+
 (defface clangd-inactive-regions-shadow-face
   '((t (:inherit shadow)))
   "Base face used to fontify inactive code with `shadow' method.")
@@ -69,7 +74,7 @@ Allowed methods:
 
 (define-minor-mode clangd-inactive-regions-mode
   "Minor mode to enable Eglot support for clangd inactiveRegions extension."
-  :global nil
+  :global t
   (cond (clangd-inactive-regions-mode
          (clangd-inactive-regions--enable))
         (t
@@ -85,7 +90,7 @@ Allowed methods:
     (error "Unknown shading method: %s" method))
   (setq clangd-inactive-regions-method method)
   (when clangd-inactive-regions-mode
-    (clangd-inactive-regions-refresh)))
+    (clangd-inactive-regions-refresh-all)))
 
 (defun clangd-inactive-regions-set-opacity (opacity)
   "Interactively set a new OPACITY value for inactive regions.
@@ -95,7 +100,7 @@ Only applies to `darken-foreground' method."
     (error "Opacity should be between 0.0 and 1.0"))
   (setq clangd-inactive-regions-opacity opacity)
   (when clangd-inactive-regions-mode
-    (clangd-inactive-regions-refresh)))
+    (clangd-inactive-regions-refresh-all)))
 
 (defun clangd-inactive-regions-set-shading (shading)
   "Interactively set a new SHADING value for inactive regions.
@@ -105,7 +110,7 @@ Only applies to `shade-background' method."
     (error "Shading factor should be between 0.0 and 1.0"))
   (setq clangd-inactive-regions-shading shading)
   (when clangd-inactive-regions-mode
-    (clangd-inactive-regions-refresh)))
+    (clangd-inactive-regions-refresh-all)))
 
 (defun clangd-inactive-regions--color-blend (from-color to-color alpha)
   "Linearly interpolate between two colors.
@@ -122,11 +127,12 @@ factor."
 
 (defun clangd-inactive-regions-cleanup ()
   "Clean up inactive regions."
-  (mapc #'delete-overlay clangd-inactive-regions--overlays)
-  (setq clangd-inactive-regions--overlays '())
-  (with-silent-modifications
-    (remove-text-properties (point-min) (point-max) '(clangd-inactive-region nil)))
-  (font-lock-flush))
+  (when clangd-inactive-regions--active
+    (mapc #'delete-overlay clangd-inactive-regions--overlays)
+    (setq clangd-inactive-regions--overlays '())
+    (with-silent-modifications
+      (remove-text-properties (point-min) (point-max) '(clangd-inactive-region nil)))
+    (font-lock-flush)))
 
 (defun clangd-inactive-regions--get-face (pos)
   "Get face at POS.
@@ -157,7 +163,7 @@ If the correspondend \"clangd-inactive\" face doesn't not exist yet create it."
 
 (defun clangd-inactive-regions--forward-face-or-whitespace ()
   "Forward to the next face change.
-Some mode uses `default' face for both generic keywords and
+Some mode use `default' face for both generic keywords and
 whitespace while some other uses nil for whitespace.  Either way
 we don't want to include whitespace in fontification."
   (let* ((prev-face (get-text-property (point) 'face))
@@ -177,6 +183,7 @@ we don't want to include whitespace in fontification."
   ;; cover whole lines seems to work with c modes
   (ignore verbose)
   (when (and clangd-inactive-regions-mode
+             clangd-inactive-regions--active
              (string= clangd-inactive-regions-method "darken-foreground"))
     (save-excursion
       (save-restriction
@@ -225,66 +232,48 @@ we don't want to include whitespace in fontification."
   "Force a refresh of known inactive regions.
 Useful to update colors after a face or theme change."
   (clangd-inactive-regions-cleanup)
-  (when (string= clangd-inactive-regions-method "shade-background")
-    (set-face-background 'clangd-inactive-regions-shade-face
-                         (clangd-inactive-regions--color-blend
-                          (face-foreground 'default)
-                          (face-background 'default)
-                          clangd-inactive-regions-shading)))
-  (dolist (range clangd-inactive-regions--ranges)
-    (let ((beg (car range))
-          (end (cdr range)))
-      (cond
-       ((string= clangd-inactive-regions-method "darken-foreground")
-        (with-silent-modifications
-          (put-text-property beg end 'clangd-inactive-region t))
-        (font-lock-flush))
-       ((string= clangd-inactive-regions-method "shadow")
-        (let ((ov (make-overlay beg end)))
-          (overlay-put ov 'face 'clangd-inactive-regions-shadow-face)
-          (push ov clangd-inactive-regions--overlays)))
-       ((string= clangd-inactive-regions-method "shade-background")
-        (let ((ov (make-overlay beg (1+ end))))
-          (overlay-put ov 'face 'clangd-inactive-regions-shade-face)
-          (push ov clangd-inactive-regions--overlays)))))))
+  (when clangd-inactive-regions--active
+    (when (string= clangd-inactive-regions-method "shade-background")
+      (set-face-background 'clangd-inactive-regions-shade-face
+                           (clangd-inactive-regions--color-blend
+                            (face-foreground 'default)
+                            (face-background 'default)
+                            clangd-inactive-regions-shading)))
+    (dolist (range clangd-inactive-regions--ranges)
+      (let ((beg (car range))
+            (end (cdr range)))
+        (cond
+         ((string= clangd-inactive-regions-method "darken-foreground")
+          (with-silent-modifications
+            (put-text-property beg end 'clangd-inactive-region t))
+          (font-lock-flush))
+         ((string= clangd-inactive-regions-method "shadow")
+          (let ((ov (make-overlay beg end)))
+            (overlay-put ov 'face 'clangd-inactive-regions-shadow-face)
+            (push ov clangd-inactive-regions--overlays)))
+         ((string= clangd-inactive-regions-method "shade-background")
+          (let ((ov (make-overlay beg (1+ end))))
+            (overlay-put ov 'face 'clangd-inactive-regions-shade-face)
+            (push ov clangd-inactive-regions--overlays))))))))
+
+(defun clangd-inactive-regions-refresh-all ()
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (clangd-inactive-regions-refresh))))
 
 (defun clangd-inactive-regions--enable ()
   "Helper method to enable inactive regions minor mode."
-  ;; FIXME: cc-mode.el replaces local fontify-region-function with one
-  ;; that extends it contextually to a syntactially relevant bigger
-  ;; region. Then it calls the global fontify-region-function on the new
-  ;; region boundaries. So if we want to get the extended region we need
-  ;; to advice the global function while our mode is inherently a buffer
-  ;; local one. Only limit this to c-mode and c++-mode while I look for
-  ;; a better alternative.
-  (if (memq major-mode '(c-mode c++-mode))
-      (add-function :after (default-value 'font-lock-fontify-region-function)
-                    #'clangd-inactive-regions--fontify)
-    (add-function :after (local 'font-lock-fontify-region-function)
-                  #'clangd-inactive-regions--fontify)))
+  (add-function :after (default-value 'font-lock-fontify-region-function)
+                #'clangd-inactive-regions--fontify))
 
-(defun clangd-inactive-regions--enabled-anywhere-p ()
-  "Check if our mode is enabled in any classic C mode buffers."
-  (let ((enabled nil))
-    (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (and (memq major-mode '(c-mode c++-mode))
-             clangd-inactive-regions-mode
-             (setq enabled t))))
-    enabled))
-
-;; FIXME: same as before, if we are hooking into the global
-;; fontification function only remove the hook if we're the last
-;; buffer using it.
 (defun clangd-inactive-regions--disable ()
   "Helper method to enable inactive regions minor mode."
-  (if (memq major-mode '(c-mode c++-mode))
-      (unless (clangd-inactive-regions--enabled-anywhere-p)
-        (remove-function (default-value 'font-lock-fontify-region-function)
-                         #'clangd-inactive-regions--fontify))
-    (remove-function (local 'font-lock-fontify-region-function)
-                     #'clangd-inactive-regions--fontify))
-  (clangd-inactive-regions-cleanup))
+  (remove-function (default-value 'font-lock-fontify-region-function)
+                   #'clangd-inactive-regions--fontify)
+  (dolist (buf (buffer-list))
+    (clangd-inactive-regions-cleanup)
+    (setq clangd-inactive-regions--ranges '())
+    (setq clangd-inactive-regions--active nil)))
 
 (cl-defmethod eglot-client-capabilities :around (server)
   (let ((base (cl-call-next-method)))
@@ -304,6 +293,8 @@ Useful to update colors after a face or theme change."
               (buffer (find-buffer-visiting path)))
         (with-current-buffer buffer
           (when clangd-inactive-regions-mode
+            (unless clangd-inactive-regions--active
+              (setq clangd-inactive-regions--active t))
             (setq clangd-inactive-regions--ranges '())
             (cl-loop
              for r across regions
