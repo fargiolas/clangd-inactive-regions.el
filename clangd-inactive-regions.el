@@ -273,10 +273,9 @@ Useful to update colors after a face or theme change."
                    #'clangd-inactive-regions--fontify)
   (dolist (buf (buffer-list))
     (clangd-inactive-regions-cleanup)
-    (setq clangd-inactive-regions--ranges '()))
+    (setq clangd-inactive-regions--ranges '())
+    (setq clangd-inactive-regions--active nil))
   (remove-hook 'change-major-mode-hook #'clangd-inactive-regions-cleanup))
-
-;;    (setq clangd-inactive-regions--active nil)))
 
 (cl-defmethod eglot-client-capabilities :around (server)
   (let ((base (cl-call-next-method)))
