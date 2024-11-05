@@ -264,7 +264,8 @@ Useful to update colors after a face or theme change."
 (defun clangd-inactive-regions--enable ()
   "Helper method to enable inactive regions minor mode."
   (add-function :after (default-value 'font-lock-fontify-region-function)
-                #'clangd-inactive-regions--fontify))
+                #'clangd-inactive-regions--fontify)
+  (add-hook 'change-major-mode-hook #'clangd-inactive-regions-cleanup))
 
 (defun clangd-inactive-regions--disable ()
   "Helper method to enable inactive regions minor mode."
@@ -273,7 +274,8 @@ Useful to update colors after a face or theme change."
   (dolist (buf (buffer-list))
     (clangd-inactive-regions-cleanup)
     (setq clangd-inactive-regions--ranges '())
-    (setq clangd-inactive-regions--active nil)))
+    (setq clangd-inactive-regions--active nil))
+  (remove-hook 'change-major-mode-hook #'clangd-inactive-regions-cleanup))
 
 (cl-defmethod eglot-client-capabilities :around (server)
   (let ((base (cl-call-next-method)))
