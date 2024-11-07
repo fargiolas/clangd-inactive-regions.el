@@ -279,31 +279,40 @@ Useful to update colors after a face or theme change."
 
 (cl-defmethod eglot-client-capabilities :around (server)
   (let ((base (cl-call-next-method)))
-    (when (cl-find "clangd" (process-command (jsonrpc--process server))
-                   :test #'string-match)
+    (when (cl-some (lambda (s) (cl-find s (process-command (jsonrpc--process server))
+                                        :test #'string-match))
+                   '("clangd" "ccls"))
       (setf (cl-getf (cl-getf base :textDocument)
                      :inactiveRegionsCapabilities)
             '(:inactiveRegions t)))
     base))
 
+(defun clangd-inactive-regions--handle-notification (uri regions)
+  (if-let* ((path (expand-file-name (eglot-uri-to-path uri)))
+            (buffer (find-buffer-visiting path)))
+      (with-current-buffer buffer
+        (when clangd-inactive-regions-mode
+          (unless clangd-inactive-regions--active
+            (setq clangd-inactive-regions--active t))
+          (setq clangd-inactive-regions--ranges '())
+          (cl-loop
+           for r across regions
+           for (beg . end) = (eglot-range-region r)
+           do
+           (push (cons beg end) clangd-inactive-regions--ranges))
+          (clangd-inactive-regions-refresh)))))
+
+(cl-defmethod eglot-handle-notification
+  (_server (_method (eql $ccls/publishSkippedRanges))
+           &key uri skippedRanges)
+  (clangd-inactive-regions--handle-notification uri skippedRanges))
+
 (cl-defmethod eglot-handle-notification
   (_server (_method (eql textDocument/inactiveRegions))
            &key regions textDocument &allow-other-keys)
   "Update inactive regions when clangd reports them."
-    (if-let* ((path (expand-file-name (eglot-uri-to-path
-                                       (cl-getf textDocument :uri))))
-              (buffer (find-buffer-visiting path)))
-        (with-current-buffer buffer
-          (when clangd-inactive-regions-mode
-            (unless clangd-inactive-regions--active
-              (setq clangd-inactive-regions--active t))
-            (setq clangd-inactive-regions--ranges '())
-            (cl-loop
-             for r across regions
-             for (beg . end) = (eglot-range-region r)
-             do
-             (push (cons beg end) clangd-inactive-regions--ranges))
-            (clangd-inactive-regions-refresh)))))
+  (if-let ((uri (cl-getf textDocument :uri)))
+      (clangd-inactive-regions--handle-notification uri regions)))
 
 (provide 'clangd-inactive-regions)
 
