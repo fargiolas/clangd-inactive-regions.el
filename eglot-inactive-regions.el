@@ -34,7 +34,7 @@
 ;;
 ;; This mode provides visual feedback to quickly identify these disabled
 ;; code regions.  Supports three visualization styles:
-;;  - `shadow' applies shadow face from current theme
+;;  - `shadow-face' applies shadow face from current theme
 ;;  - `shade-background' makes the background slightly lighter or darker
 ;;  - `darken-foreground' dims foreground colors
 ;;
@@ -49,32 +49,45 @@
 (require 'color)
 (require 'font-lock)
 
-(defvar eglot-inactive-regions-opacity 0.55
+(defgroup inactive-regions nil "Eglot Inactive Regions."
+  :group 'tools
+  :prefix "eglot-inactive-regions-")
+
+(defun eglot-inactive-regions--set-and-refresh (sym val)
+  "Set custom variable SYM to value VAL trigger a refresh of all active buffers."
+  (set sym val)
+  (when (fboundp 'eglot-inactive-regions-refresh-all)
+    (eglot-inactive-regions-refresh-all)))
+
+(defcustom eglot-inactive-regions-opacity 0.55
   "Blending factor for the `darken-foreground' method.
 Used to mix foreground and background colors and apply to the foreground
 face of the inactive region.  The lower the blending factor the more
-text will look dim.")
+text will look dim."
+  :type '(float :tag "Opacity" :min 0.0 :max 1.0)
+  :set #'eglot-inactive-regions--set-and-refresh
+  :group 'inactive-regions)
 
-(defvar eglot-inactive-regions-shading 0.08
+(defcustom eglot-inactive-regions-shading 0.08
   "Blending factor for the `shade-background' method.
 Used to mix background and foreground colors and shade inactive region
-background face.  The higher the less visible the shading will be.")
+background face.  The higher the less visible the shading will be."
+  :type '(float :tag "Opacity" :min 0.0 :max 1.0)
+  :set #'eglot-inactive-regions--set-and-refresh
+  :group 'inactive-regions)
 
-(defvar eglot-inactive-regions-method "darken-foreground"
-  "Shading method to apply to the inactive code regions.
+(defcustom eglot-inactive-regions-method 'darken-foreground
+    "Shading method to apply to the inactive code regions.
 Allowed methods:
 - darken-foreground: dim foreground color
 - shade-background: shade background color
-- shadow: apply shadow face.")
-
-(defvar-local eglot-inactive-regions--overlays '())
-(setq-default eglot-inactive-regions--overlays '())
-(defvar-local eglot-inactive-regions--ranges '())
-(setq-default eglot-inactive-regions--ranges '())
-(defvar-local eglot-inactive-regions--active nil)
-(setq-default eglot-inactive-regions--active nil)
-
-(defvar eglot-inactive-regions--methods '("darken-foreground" "shade-background" "shadow"))
+- shadow: apply shadow face."
+  :type '(choice
+          (const :tag "Darken foreground" darken-foreground)
+          (const :tag "Shade background" shade-background)
+          (const :tag "Shadow" shadow-face))
+  :set #'eglot-inactive-regions--set-and-refresh
+  :group 'inactive-regions)
 
 (defface eglot-inactive-regions-shadow-face
   '((t (:inherit shadow)))
@@ -84,25 +97,41 @@ Allowed methods:
   '((t (:extend t)))
   "Base face used to fontify inactive code with `shade-background' method.")
 
+(defvar-local eglot-inactive-regions--overlays '())
+(setq-default eglot-inactive-regions--overlays '())
+(defvar-local eglot-inactive-regions--ranges '())
+(setq-default eglot-inactive-regions--ranges '())
+(defvar-local eglot-inactive-regions--active nil)
+(setq-default eglot-inactive-regions--active nil)
+
 (define-minor-mode eglot-inactive-regions-mode
   "Minor mode to enable Eglot support for clangd inactiveRegions extension."
   :global t
+  :group 'inactive-regions
   (cond (eglot-inactive-regions-mode
          (eglot-inactive-regions--enable))
         (t
          (eglot-inactive-regions--disable))))
 
+(defun eglot-inactive-regions--methods ()
+  "Return a list of methods and method names."
+  (let ((choices (get 'eglot-inactive-regions-method 'custom-type)))
+    (mapcar (lambda (opt)
+              (let ((symbol (car (last opt)))
+                    (tag (plist-get (cdr opt) :tag)))
+                (cons symbol tag)))
+            (cdr choices))))
+
 (defun eglot-inactive-regions-set-method (method)
   "Interactively select a shading METHOD to render inactive code regions."
   (interactive
-   (list (let ((completion-ignore-case t)
-	       (prompt "Set inactive regions shading method: "))
-	   (completing-read prompt eglot-inactive-regions--methods nil t nil))))
-  (unless (member method eglot-inactive-regions--methods)
-    (error "Unknown shading method: %s" method))
+   (let* ((methods (eglot-inactive-regions--methods))
+          (names (mapcar #'cdr methods))
+          (prompt "Set inactive regions shading method: ")
+          (value (completing-read prompt names)))
+     (list (car (rassoc value methods)))))
   (setq eglot-inactive-regions-method method)
-  (when eglot-inactive-regions-mode
-    (eglot-inactive-regions-refresh-all)))
+  (eglot-inactive-regions-refresh-all))
 
 (defun eglot-inactive-regions-set-opacity (opacity)
   "Interactively set a new OPACITY value for inactive regions.
@@ -111,8 +140,7 @@ Only applies to `darken-foreground' method."
   (unless (and (>= opacity 0.0) (<= opacity 1.0))
     (error "Opacity should be between 0.0 and 1.0"))
   (setq eglot-inactive-regions-opacity opacity)
-  (when eglot-inactive-regions-mode
-    (eglot-inactive-regions-refresh-all)))
+  (eglot-inactive-regions-refresh-all))
 
 (defun eglot-inactive-regions-set-shading (shading)
   "Interactively set a new SHADING value for inactive regions.
@@ -121,8 +149,7 @@ Only applies to `shade-background' method."
   (unless (and (>= shading 0.0) (<= shading 1.0))
     (error "Shading factor should be between 0.0 and 1.0"))
   (setq eglot-inactive-regions-shading shading)
-  (when eglot-inactive-regions-mode
-    (eglot-inactive-regions-refresh-all)))
+  (eglot-inactive-regions-refresh-all))
 
 (defun eglot-inactive-regions--color-blend (from-color to-color alpha)
   "Linearly interpolate between two colors.
@@ -196,7 +223,7 @@ we don't want to include whitespace in fontification."
   (ignore verbose)
   (when (and eglot-inactive-regions-mode
              eglot-inactive-regions--active
-             (string= eglot-inactive-regions-method "darken-foreground"))
+             (eq eglot-inactive-regions-method 'darken-foreground))
     (save-excursion
       (save-restriction
         (widen)
@@ -245,7 +272,7 @@ we don't want to include whitespace in fontification."
 Useful to update colors after a face or theme change."
   (eglot-inactive-regions-cleanup)
   (when eglot-inactive-regions--active
-    (when (string= eglot-inactive-regions-method "shade-background")
+    (when (eq eglot-inactive-regions-method 'shade-background)
       (set-face-background 'eglot-inactive-regions-shade-face
                            (eglot-inactive-regions--color-blend
                             (face-foreground 'default)
@@ -255,24 +282,25 @@ Useful to update colors after a face or theme change."
       (let ((beg (car range))
             (end (cdr range)))
         (cond
-         ((string= eglot-inactive-regions-method "darken-foreground")
+         ((eq eglot-inactive-regions-method 'darken-foreground)
           (with-silent-modifications
             (put-text-property beg end 'eglot-inactive-region t))
           (font-lock-flush))
-         ((string= eglot-inactive-regions-method "shadow")
+         ((eq eglot-inactive-regions-method 'shadow-face)
           (let ((ov (make-overlay beg end)))
             (overlay-put ov 'face 'eglot-inactive-regions-shadow-face)
             (push ov eglot-inactive-regions--overlays)))
-         ((string= eglot-inactive-regions-method "shade-background")
+         ((eq eglot-inactive-regions-method 'shade-background)
           (let ((ov (make-overlay beg (1+ end))))
             (overlay-put ov 'face 'eglot-inactive-regions-shade-face)
             (push ov eglot-inactive-regions--overlays))))))))
 
 (defun eglot-inactive-regions-refresh-all ()
   "Refresh all buffers where this mode is enabled."
-  (dolist (buffer (buffer-list))
-    (with-current-buffer buffer
-      (eglot-inactive-regions-refresh))))
+  (when eglot-inactive-regions-mode
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (eglot-inactive-regions-refresh)))))
 
 (defun eglot-inactive-regions--enable ()
   "Helper method to enable inactive regions minor mode."
