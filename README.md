@@ -1,21 +1,25 @@
-# clangd-inactive-regions.el
+# eglot-inactive-regions
 
-## About
-
-Eglot extension to support the new clangd inactiveRegions LSP
-capability introduced in clangd-17.
+Emacs Eglot extension to visually style inactive preprocessor
+branches.
 
 Highlights inactive code in a LSP aware way, taking into account
 compile time includes and defines for current project.
 
-Listens to inactiveRegions notifications and shades them with one of
-the available-methods:
+## Features
 
-* `darken-foreground` makes inactive code semitransparent blending
-  current foreground and background colors
-* `shade-background` makes inactive code background slightly darker or
-  lighter depending on current theme
-* `shadow` applies the shadow face to inactive code
+- **Visual indication of inactive code**: dimmed colors, shaded background or custom face can be used to quickly identify disabled code sections.
+- **Automatic integration with eglot** when the `eglot-inactive-regions-mode` global minor mode is enabled.
+
+### Styling methods
+* `darken-foreground` dims inactive code foreground colors
+* `shade-background` shades inactive code background (similar to eclipse style) 
+* `shadow-face` applies the shadow face (or any face you like) to inactive code sections 
+
+## Supported servers
+
+- [clangd](https://clangd.llvm.org/) (since clangd-17) with [inactiveRegions](https://github.com/clangd/clangd/issues/132) extension
+- [ccls](https://github.com/MaskRay/ccls) with skippedRanges extension. Still experimenting with this. Poorly documented, seems to emit notifications only on file save, feedback welcome!
 
 ## Screenshots
 
@@ -32,26 +36,35 @@ Windows code is correctly disabled.
 
 ![shade-background](./screenshots/shade-background-modus-operandi.png)
 
+## Requirements
+
+- emacs 29.1+
+- clangd with inactiveRegions support (clangd-17+)
+- ccls with skippedRanges support
+
 ## Installation
 
 ```lisp
-(unless (package-installed-p 'clangd-inactive-regions)
-  (package-vc-install "https://github.com/fargiolas/clangd-inactive-regions.el"))
+(unless (package-installed-p 'eglot-inactive-regions)
+  (package-vc-install "https://github.com/fargiolas/eglot-inactive-regions"))
 ```
-
-You will need at least emacs 29.1 and clangd-17.
 
 ## Usage
 
 ```lisp
-(use-package clangd-inactive-regions
-  :init
-  (add-hook 'eglot-managed-mode-hook #'clangd-inactive-regions-mode)
+(use-package eglot-inactive-regions
+  :custom
+  (eglot-inactive-regions-method 'darken-foreground)
+  (eglot-inactive-regions-opacity 0.4)
   :config
-  (clangd-inactive-regions-set-method "darken-foreground")
-  (clangd-inactive-regions-set-opacity 0.55))
+  (eglot-inactive-regions-mode 1))
 ```
 
+## Customization
+
+`M-x customize-group inactive-regions` can be used to select the
+preferred shading style, customize text opacity and background shading
+or customize the base faces.
 
 ## Caveats
 
@@ -60,10 +73,10 @@ opacity. Best would be a face attribute so that you can set it in an
 overlay covering each inactive region and be done with it. Unfortunately
 there is no attribute for this yet.
 
-Hence `darken-foreground` method is a fragile and inefficient hack around
-fontification: for each inactive region it looks for symbols with
-different faces and applies to each of them a different overlay with a
-dimmed foreground color.
+Hence `darken-foreground` method is a probably fragile and inefficient
+hack around fontification: for each inactive region it looks for
+symbols with different faces and applies to each of them a different
+overlay with a dimmed foreground color.
 
 It seems to work with cc and c-ts modes and I've been using it daily
 for more than a year now, but could totally break other modes or
