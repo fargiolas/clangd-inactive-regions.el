@@ -49,12 +49,13 @@
 (require 'color)
 (require 'font-lock)
 
-(defgroup inactive-regions nil "Eglot Inactive Regions."
+(defgroup inactive-regions nil
+  "Eglot Inactive Regions."
   :group 'tools
   :prefix "eglot-inactive-regions-")
 
 (defun eglot-inactive-regions--set-and-refresh (sym val)
-  "Set custom variable SYM to value VAL trigger a refresh of all active buffers."
+  "Set custom variable SYM to value VAL and trigger a refresh of all active buffers."
   (set sym val)
   (when (fboundp 'eglot-inactive-regions-refresh-all)
     (eglot-inactive-regions-refresh-all)))
@@ -77,7 +78,7 @@ background face.  The higher the less visible the shading will be."
   :group 'inactive-regions)
 
 (defcustom eglot-inactive-regions-method 'darken-foreground
-    "Shading method to apply to the inactive code regions.
+  "Shading method to apply to the inactive code regions.
 Allowed methods:
 - darken-foreground: dim foreground color
 - shade-background: shade background color
@@ -159,9 +160,9 @@ factor."
         (to-rgb (color-name-to-rgb to-color))
         (alpha (min 1.0 (max 0.0 alpha))))
     (if (and from-rgb to-rgb)
-      (apply 'color-rgb-to-hex
-             (cl-mapcar #'(lambda (a b) (+ (* a alpha) (* b (- 1.0 alpha))))
-                        from-rgb to-rgb))
+        (apply 'color-rgb-to-hex
+               (cl-mapcar #'(lambda (a b) (+ (* a alpha) (* b (- 1.0 alpha))))
+                          from-rgb to-rgb))
       'unspecified)))
 
 (defun eglot-inactive-regions-cleanup ()
@@ -321,7 +322,7 @@ Useful to update colors after a face or theme change."
 
 (defun eglot-inactive-regions--handle-notification (uri regions)
   "Update inactive REGIONS for the buffer corresponding to URI."
-  (if-let* ((path (expand-file-name (eglot-uri-to-path uri)))
+  (if-let* ((path (expand-file-name (eglot--uri-to-path uri)))
             (buffer (find-buffer-visiting path)))
       (with-current-buffer buffer
         (when eglot-inactive-regions-mode
@@ -330,7 +331,7 @@ Useful to update colors after a face or theme change."
           (setq eglot-inactive-regions--ranges '())
           (cl-loop
            for r across regions
-           for (beg . end) = (eglot-range-region r)
+           for (beg . end) = (eglot--range-region r)
            do
            (push (cons beg end) eglot-inactive-regions--ranges))
           (eglot-inactive-regions-refresh)))))
