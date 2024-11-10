@@ -61,7 +61,7 @@
     (eglot-inactive-regions-refresh-all)))
 
 (defcustom eglot-inactive-regions-opacity 0.55
-  "Blending factor for the `darken-foreground' method.
+  "Blending factor for the `darken-foreground' style.
 Used to mix foreground and background colors and apply to the foreground
 face of the inactive region.  The lower the blending factor the more
 text will look dim."
@@ -70,16 +70,16 @@ text will look dim."
   :group 'inactive-regions)
 
 (defcustom eglot-inactive-regions-shading 0.08
-  "Blending factor for the `shade-background' method.
+  "Blending factor for the `shade-background' style.
 Used to mix background and foreground colors and shade inactive region
-background face.  The higher the less visible the shading will be."
+background face.  The lower the more subtle shading will be."
   :type '(float :tag "Opacity" :min 0.0 :max 1.0)
   :set #'eglot-inactive-regions--set-and-refresh
   :group 'inactive-regions)
 
-(defcustom eglot-inactive-regions-method 'darken-foreground
-  "Shading method to apply to the inactive code regions.
-Allowed methods:
+(defcustom eglot-inactive-regions-style 'darken-foreground
+  "Shading style to apply to the inactive code regions.
+Allowed styles:
 - darken-foreground: dim foreground color
 - shade-background: shade background color
 - shadow: apply shadow face."
@@ -92,11 +92,14 @@ Allowed methods:
 
 (defface eglot-inactive-regions-shadow-face
   '((t (:inherit shadow)))
-  "Base face used to fontify inactive code with `shadow' method.")
+  "Base face used to fontify inactive code with `shadow-face' style.")
 
 (defface eglot-inactive-regions-shade-face
   '((t (:extend t)))
-  "Base face used to fontify inactive code with `shade-background' method.")
+  "Base face used to fontify inactive code with `shade-background' style.
+Background color is dynamically computed by blending current theme
+background and foreground colors with `eglot-inactive-regions-shading'
+factor.  All other face attributes you can customize.")
 
 (defvar-local eglot-inactive-regions--overlays '())
 (setq-default eglot-inactive-regions--overlays '())
@@ -114,29 +117,29 @@ Allowed methods:
         (t
          (eglot-inactive-regions--disable))))
 
-(defun eglot-inactive-regions--methods ()
-  "Return a list of methods and method names."
-  (let ((choices (get 'eglot-inactive-regions-method 'custom-type)))
+(defun eglot-inactive-regions--styles ()
+  "Return a list of styles and style names."
+  (let ((choices (get 'eglot-inactive-regions-style 'custom-type)))
     (mapcar (lambda (opt)
               (let ((symbol (car (last opt)))
                     (tag (plist-get (cdr opt) :tag)))
                 (cons symbol tag)))
             (cdr choices))))
 
-(defun eglot-inactive-regions-set-method (method)
-  "Interactively select a shading METHOD to render inactive code regions."
+(defun eglot-inactive-regions-set-style (style)
+  "Interactively select a shading STYLE to render inactive code regions."
   (interactive
-   (let* ((methods (eglot-inactive-regions--methods))
-          (names (mapcar #'cdr methods))
-          (prompt "Set inactive regions shading method: ")
+   (let* ((styles (eglot-inactive-regions--styles))
+          (names (mapcar #'cdr styles))
+          (prompt "Set inactive regions shading style: ")
           (value (completing-read prompt names)))
-     (list (car (rassoc value methods)))))
-  (setq eglot-inactive-regions-method method)
+     (list (car (rassoc value styles)))))
+  (setq eglot-inactive-regions-style style)
   (eglot-inactive-regions-refresh-all))
 
 (defun eglot-inactive-regions-set-opacity (opacity)
   "Interactively set a new OPACITY value for inactive regions.
-Only applies to `darken-foreground' method."
+Only applies to `darken-foreground' style."
   (interactive "nNew inactive region foreground color opacity [0-1.0]: ")
   (unless (and (>= opacity 0.0) (<= opacity 1.0))
     (error "Opacity should be between 0.0 and 1.0"))
@@ -145,7 +148,7 @@ Only applies to `darken-foreground' method."
 
 (defun eglot-inactive-regions-set-shading (shading)
   "Interactively set a new SHADING value for inactive regions.
-Only applies to `shade-background' method."
+Only applies to `shade-background' style."
   (interactive "nNew inactive region background color shading [0-1.0]: ")
   (unless (and (>= shading 0.0) (<= shading 1.0))
     (error "Shading factor should be between 0.0 and 1.0"))
@@ -224,7 +227,7 @@ we don't want to include whitespace in fontification."
   (ignore verbose)
   (when (and eglot-inactive-regions-mode
              eglot-inactive-regions--active
-             (eq eglot-inactive-regions-method 'darken-foreground))
+             (eq eglot-inactive-regions-style 'darken-foreground))
     (save-excursion
       (save-restriction
         (widen)
@@ -273,7 +276,7 @@ we don't want to include whitespace in fontification."
 Useful to update colors after a face or theme change."
   (eglot-inactive-regions-cleanup)
   (when eglot-inactive-regions--active
-    (when (eq eglot-inactive-regions-method 'shade-background)
+    (when (eq eglot-inactive-regions-style 'shade-background)
       (set-face-background 'eglot-inactive-regions-shade-face
                            (eglot-inactive-regions--color-blend
                             (face-foreground 'default)
@@ -283,15 +286,15 @@ Useful to update colors after a face or theme change."
       (let ((beg (car range))
             (end (cdr range)))
         (cond
-         ((eq eglot-inactive-regions-method 'darken-foreground)
+         ((eq eglot-inactive-regions-style 'darken-foreground)
           (with-silent-modifications
             (put-text-property beg end 'eglot-inactive-region t))
           (font-lock-flush))
-         ((eq eglot-inactive-regions-method 'shadow-face)
+         ((eq eglot-inactive-regions-style 'shadow-face)
           (let ((ov (make-overlay beg end)))
             (overlay-put ov 'face 'eglot-inactive-regions-shadow-face)
             (push ov eglot-inactive-regions--overlays)))
-         ((eq eglot-inactive-regions-method 'shade-background)
+         ((eq eglot-inactive-regions-style 'shade-background)
           (let ((ov (make-overlay beg (1+ end))))
             (overlay-put ov 'face 'eglot-inactive-regions-shade-face)
             (push ov eglot-inactive-regions--overlays))))))))

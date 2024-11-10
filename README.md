@@ -11,7 +11,7 @@ compile time includes and defines for current project.
 - **Visual indication of inactive code**: dimmed colors, shaded background or custom face can be used to quickly identify disabled code sections.
 - **Automatic integration with eglot** when the `eglot-inactive-regions-mode` global minor mode is enabled.
 
-### Styling methods
+### Shading styles
 * `darken-foreground` dims inactive code foreground colors
 * `shade-background` shades inactive code background (similar to eclipse style) 
 * `shadow-face` applies the shadow face (or any face you like) to inactive code sections 
@@ -23,7 +23,7 @@ compile time includes and defines for current project.
 
 ## Screenshots
 
-#### `darken-foreground` method, gruvbox dark theme, 30% opacity
+#### `darken-foreground` style, gruvbox dark theme, 30% opacity
 
 Inactive regions are provided by the language server so they will
 honor your include paths and compile time defines. Here I'm looking at
@@ -32,7 +32,7 @@ Windows code is correctly disabled.
 
 ![darken-foreground](./screenshots/darken-foreground-gruvbox-dark.png)
 
-#### `shade-background` method, modus operandi theme, 10% shading
+#### `shade-background` style, modus operandi theme, 10% shading
 
 ![shade-background](./screenshots/shade-background-modus-operandi.png)
 
@@ -54,7 +54,7 @@ Windows code is correctly disabled.
 ```lisp
 (use-package eglot-inactive-regions
   :custom
-  (eglot-inactive-regions-method 'darken-foreground)
+  (eglot-inactive-regions-style 'darken-foreground)
   (eglot-inactive-regions-opacity 0.4)
   :config
   (eglot-inactive-regions-mode 1))
@@ -73,7 +73,7 @@ opacity. Best would be a face attribute so that you can set it in an
 overlay covering each inactive region and be done with it. Unfortunately
 there is no attribute for this yet.
 
-Hence `darken-foreground` method is a probably fragile and inefficient
+Hence `darken-foreground` style is a probably fragile and inefficient
 hack around fontification: for each inactive region it looks for
 symbols with different faces and applies to each of them a different
 overlay with a dimmed foreground color.
