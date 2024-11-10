@@ -6,13 +6,13 @@
 
 ;; Author: Filippo Argiolas <filippo.argiolas@gmail.com>
 ;; Version: 0.5
-;; URL: https://github.com/fargiolas/clangd-inactive-regions.el
+;; URL: https://github.com/fargiolas/eglot-inactive-regions
 ;; Package-Requires: ((emacs "29.1"))
 
-;; eglot-inactive-regions.el is free software: you can redistribute
-;; it and/or modify it under the terms of the GNU General Public
-;; License as published by the Free Software Foundation, either
-;; version 3 of the License, or (at your option) any later version.
+;; eglot-inactive-regions is free software: you can redistribute it
+;; and/or modify it under the terms of the GNU General Public License
+;; as published by the Free Software Foundation, either version 3 of
+;; the License, or (at your option) any later version.
 
 ;; eglot-inactive-regions.el is distributed in the hope that it will
 ;; be useful, but WITHOUT ANY WARRANTY; without even the implied
@@ -338,9 +338,8 @@ Useful to update colors after a face or theme change."
 (cl-defmethod eglot-client-capabilities :around (server)
   "Enable inactive code capabilities for SERVER."
   (let ((base (cl-call-next-method)))
-    (when (cl-some (lambda (s) (cl-find s (process-command (jsonrpc--process server))
-                                        :test #'string-match))
-                   '("clangd" "ccls"))
+    (when (cl-find "clangd" (process-command (jsonrpc--process server))
+                   :test #'string-match)
       (setf (cl-getf (cl-getf base :textDocument)
                      :inactiveRegionsCapabilities)
             '(:inactiveRegions t)))
