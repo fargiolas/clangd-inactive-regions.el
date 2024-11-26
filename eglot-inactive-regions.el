@@ -325,8 +325,8 @@ Useful to update colors after a face or theme change."
 
 (defun eglot-inactive-regions--handle-notification (uri regions)
   "Update inactive REGIONS for the buffer corresponding to URI."
-  (if-let* ((path (expand-file-name (eglot--uri-to-path uri)))
-            (buffer (find-buffer-visiting path)))
+  (when-let* ((path (expand-file-name (eglot--uri-to-path uri)))
+              (buffer (find-buffer-visiting path)))
       (with-current-buffer buffer
         (when eglot-inactive-regions-mode
           (unless eglot-inactive-regions--active
