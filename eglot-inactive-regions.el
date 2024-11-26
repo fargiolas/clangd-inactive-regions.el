@@ -192,16 +192,16 @@ present return the higher priority one."
 If the correspondend \"clangd-inactive\" face doesn't not exist yet create it."
   (let* ((fg (face-foreground parent-face nil 'default))
          (bg (face-background parent-face nil 'default))
-         (eglot-inactive-fg (eglot-inactive-regions--color-blend fg bg eglot-inactive-regions-opacity))
-         (eglot-inactive-face-name (concat (face-name parent-face) "-clangd-inactive"))
+         (alpha eglot-inactive-regions-opacity)
+         (face-suffix "-eglot-inactive")
+         (doc-suffix " (eglot inactive region dimmed face)")
+         (eglot-inactive-fg (eglot-inactive-regions--color-blend fg bg alpha))
+         (eglot-inactive-face-name (concat (face-name parent-face) face-suffix))
          (eglot-inactive-face (intern eglot-inactive-face-name))
-         (eglot-inactive-doc (concat (face-documentation parent-face) " (clangd inactive region darkened face)")))
-
+         (eglot-inactive-doc (concat (face-documentation parent-face) doc-suffix)))
     (unless (facep eglot-inactive-face)
       (eval `(defface ,eglot-inactive-face '((t nil)) ,eglot-inactive-doc)))
-
     (set-face-foreground eglot-inactive-face eglot-inactive-fg)
-
     eglot-inactive-face))
 
 (defun eglot-inactive-regions--forward-face-or-whitespace ()
@@ -235,12 +235,10 @@ we don't want to include whitespace in fontification."
         (when (not (eolp))
           (end-of-line)
           (setq end (point)))
-
         (goto-char start)
         (when (not (bolp))
           (beginning-of-line)
           (setq start (point)))))
-
     ;; find the inactive region inside the region to fontify
     (while (and start (< start end))
       (let* ((from (or (text-property-any start end 'eglot-inactive-region t) end))
