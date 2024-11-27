@@ -118,22 +118,20 @@ factor.  All other face attributes you can customize.")
          (eglot-inactive-regions--disable))))
 
 (defun eglot-inactive-regions--styles ()
-  "Return a list of styles and style names."
-  (let ((choices (get 'eglot-inactive-regions-style 'custom-type)))
+  "Return a cons list of style names and styles."
+  (let ((choices (cdr (get 'eglot-inactive-regions-style 'custom-type))))
     (mapcar (lambda (opt)
-              (let ((symbol (car (last opt)))
-                    (tag (plist-get (cdr opt) :tag)))
-                (cons symbol tag)))
-            (cdr choices))))
+              (pcase opt (`(const :tag ,tag ,value) (cons tag value))))
+            choices)))
 
 (defun eglot-inactive-regions-set-style (style)
   "Interactively select a shading STYLE to render inactive code regions."
   (interactive
    (let* ((styles (eglot-inactive-regions--styles))
-          (names (mapcar #'cdr styles))
+          (names (mapcar #'car styles))
           (prompt "Set inactive regions shading style: ")
-          (value (completing-read prompt names)))
-     (list (car (rassoc value styles)))))
+          (name (completing-read prompt names)))
+     (list (cdr (assoc name styles)))))
   (setq eglot-inactive-regions-style style)
   (eglot-inactive-regions-refresh-all))
 
@@ -159,14 +157,13 @@ Only applies to `shade-background' style."
   "Linearly interpolate between two colors.
 Blend colors FROM-COLOR and TO-COLOR with ALPHA interpolation
 factor."
-  (let ((from-rgb (color-name-to-rgb from-color))
-        (to-rgb (color-name-to-rgb to-color))
-        (alpha (min 1.0 (max 0.0 alpha))))
-    (if (and from-rgb to-rgb)
-        (apply 'color-rgb-to-hex
-               (cl-mapcar #'(lambda (a b) (+ (* a alpha) (* b (- 1.0 alpha))))
-                          from-rgb to-rgb))
-      'unspecified)))
+  (if-let ((from-rgb (color-name-to-rgb from-color))
+           (to-rgb (color-name-to-rgb to-color))
+           (alpha (min 1.0 (max 0.0 alpha))))
+      (apply 'color-rgb-to-hex
+             (cl-mapcar #'(lambda (a b) (+ (* a alpha) (* b (- 1.0 alpha))))
+                        from-rgb to-rgb))
+      'unspecified))
 
 (defun eglot-inactive-regions-cleanup ()
   "Clean up inactive regions."
@@ -262,10 +259,10 @@ we don't want to include whitespace in fontification."
                 ;; no need to dim whitespace
                 (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
                   (let* ((cur-face (eglot-inactive-regions--get-face (1- (point))))
-                         (eglot-inactive-face (eglot-inactive-regions--make-darken-face cur-face)))
-                    (let* ((ov (make-overlay beg (point))))
+                         (eglot-inactive-face (eglot-inactive-regions--make-darken-face cur-face))
+                         (ov (make-overlay beg (point))))
                       (overlay-put ov 'face eglot-inactive-face)
-                      (push ov eglot-inactive-regions--overlays))))
+                      (push ov eglot-inactive-regions--overlays)))
                 (setq beg (point))))))
         (setq start to)))))
 
