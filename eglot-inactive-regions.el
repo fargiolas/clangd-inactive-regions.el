@@ -109,7 +109,7 @@ factor.  All other face attributes you can customize.")
 (setq-default eglot-inactive-regions--active nil)
 
 (define-minor-mode eglot-inactive-regions-mode
-  "Minor mode to enable Eglot support for clangd inactiveRegions extension."
+  "Minor mode to enable Eglot powered ifdef highlighting."
   :global t
   :group 'inactive-regions
   (cond (eglot-inactive-regions-mode
@@ -186,7 +186,7 @@ present return the higher priority one."
 
 (defun eglot-inactive-regions--make-darken-face (parent-face)
   "New face from PARENT-FACE with dimmed foreground.
-If the correspondend \"clangd-inactive\" face doesn't not exist yet create it."
+If the correspondend \"eglot-inactive\" face doesn't not exist yet create it."
   (let* ((fg (face-foreground parent-face nil 'default))
          (bg (face-background parent-face nil 'default))
          (alpha eglot-inactive-regions-opacity)
