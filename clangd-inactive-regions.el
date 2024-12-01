@@ -299,18 +299,18 @@ Useful to update colors after a face or theme change."
   (_server (_method (eql textDocument/inactiveRegions))
            &key regions textDocument &allow-other-keys)
   "Update inactive regions when clangd reports them."
-  (if-let* ((path (expand-file-name (eglot--uri-to-path
-                                     (cl-getf textDocument :uri))))
-            (buffer (find-buffer-visiting path)))
-      (with-current-buffer buffer
-        (when clangd-inactive-regions-mode
-          (setq clangd-inactive-regions--ranges '())
-          (cl-loop
-           for r across regions
-           for (beg . end) = (eglot--range-region r)
-           do
-           (push (cons beg end) clangd-inactive-regions--ranges))
-          (clangd-inactive-regions-refresh)))))
+    (if-let* ((path (expand-file-name (eglot-uri-to-path
+                                       (cl-getf textDocument :uri))))
+              (buffer (find-buffer-visiting path)))
+        (with-current-buffer buffer
+          (when clangd-inactive-regions-mode
+            (setq clangd-inactive-regions--ranges '())
+            (cl-loop
+             for r across regions
+             for (beg . end) = (eglot-range-region r)
+             do
+             (push (cons beg end) clangd-inactive-regions--ranges))
+            (clangd-inactive-regions-refresh)))))
 
 (provide 'clangd-inactive-regions)
 
