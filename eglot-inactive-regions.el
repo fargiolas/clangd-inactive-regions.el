@@ -297,9 +297,21 @@ Useful to update colors after a face or theme change."
       (setq eglot-inactive-regions--active nil)))
   (remove-hook 'change-major-mode-hook #'eglot-inactive-regions-cleanup))
 
+(defun eglot-inactive-regions--uri-to-path (uri)
+  "Fallback to deprecated uri-to-path URI if new function is not available."
+  (if (fboundp 'eglot-uri-to-path)
+      (eglot-uri-to-path uri)
+    (eglot--uri-to-path uri)))
+
+(defun eglot-inactive-regions--range-region (range)
+  "Fallback to deprecated range-region RANGE if new function is not available."
+  (if (fboundp 'eglot-range-region)
+      (eglot-range-region range)
+    (eglot--range-region range)))
+
 (defun eglot-inactive-regions--handle-notification (uri regions)
   "Update inactive REGIONS for the buffer corresponding to URI."
-  (when-let* ((path (expand-file-name (eglot--uri-to-path uri)))
+  (when-let* ((path (expand-file-name (eglot-inactive-regions--uri-to-path uri)))
               (buffer (find-buffer-visiting path)))
       (with-current-buffer buffer
         (when eglot-inactive-regions-mode
@@ -308,7 +320,7 @@ Useful to update colors after a face or theme change."
           (setq eglot-inactive-regions--ranges '())
           (cl-loop
            for r across regions
-           for (beg . end) = (eglot--range-region r)
+           for (beg . end) = (eglot-inactive-regions--range-region r)
            do
            (push (cons beg end) eglot-inactive-regions--ranges))
           (eglot-inactive-regions-refresh)))))
