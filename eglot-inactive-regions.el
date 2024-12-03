@@ -48,6 +48,7 @@
 (require 'eglot)
 (require 'color)
 (require 'font-lock)
+(eval-when-compile (require 'pcase))
 
 (defgroup inactive-regions nil
   "Eglot Inactive Regions."
@@ -56,7 +57,7 @@
 
 (defun eglot-inactive-regions--set-and-refresh (sym val)
   "Set custom variable SYM to value VAL and trigger a refresh of all active buffers."
-  (set sym val)
+  (set-default sym val)
   (when (fboundp 'eglot-inactive-regions-refresh-all)
     (eglot-inactive-regions-refresh-all)))
 
@@ -65,17 +66,15 @@
 Used to mix foreground and background colors and apply to the foreground
 face of the inactive region.  The lower the blending factor the more
 text will look dim."
-  :type '(float :tag "Opacity" :min 0.0 :max 1.0)
-  :set #'eglot-inactive-regions--set-and-refresh
-  :group 'inactive-regions)
+  :type '(float :tag "Opacity")
+  :set #'eglot-inactive-regions--set-and-refresh)
 
 (defcustom eglot-inactive-regions-shading 0.08
   "Blending factor for the `shade-background' style.
 Used to mix background and foreground colors and shade inactive region
 background face.  The lower the more subtle shading will be."
-  :type '(float :tag "Opacity" :min 0.0 :max 1.0)
-  :set #'eglot-inactive-regions--set-and-refresh
-  :group 'inactive-regions)
+  :type '(float :tag "Shading")
+  :set #'eglot-inactive-regions--set-and-refresh)
 
 (defcustom eglot-inactive-regions-style 'darken-foreground
   "Shading style to apply to the inactive code regions.
@@ -87,8 +86,7 @@ Allowed styles:
           (const :tag "Darken foreground" darken-foreground)
           (const :tag "Shade background" shade-background)
           (const :tag "Shadow" shadow-face))
-  :set #'eglot-inactive-regions--set-and-refresh
-  :group 'inactive-regions)
+  :set #'eglot-inactive-regions--set-and-refresh)
 
 (defface eglot-inactive-regions-shadow-face
   '((t (:inherit shadow)))
@@ -111,7 +109,6 @@ factor.  All other face attributes you can customize.")
 (define-minor-mode eglot-inactive-regions-mode
   "Minor mode to enable Eglot powered ifdef highlighting."
   :global t
-  :group 'inactive-regions
   (cond (eglot-inactive-regions-mode
          (eglot-inactive-regions--enable))
         (t
@@ -120,17 +117,15 @@ factor.  All other face attributes you can customize.")
 (defun eglot-inactive-regions--styles ()
   "Return a cons list of style names and styles."
   (let ((choices (cdr (get 'eglot-inactive-regions-style 'custom-type))))
-    (mapcar (lambda (opt)
-              (pcase opt (`(const :tag ,tag ,value) (cons tag value))))
+    (mapcar (pcase-lambda (`(const :tag ,tag ,value)) (cons tag value))
             choices)))
 
 (defun eglot-inactive-regions-set-style (style)
   "Interactively select a shading STYLE to render inactive code regions."
   (interactive
    (let* ((styles (eglot-inactive-regions--styles))
-          (names (mapcar #'car styles))
           (prompt "Set inactive regions shading style: ")
-          (name (completing-read prompt names)))
+          (name (completing-read prompt styles)))
      (list (cdr (assoc name styles)))))
   (setq eglot-inactive-regions-style style)
   (eglot-inactive-regions-refresh-all))
@@ -139,8 +134,8 @@ factor.  All other face attributes you can customize.")
   "Interactively set a new OPACITY value for inactive regions.
 Only applies to `darken-foreground' style."
   (interactive "nNew inactive region foreground color opacity [0-1.0]: ")
-  (unless (and (>= opacity 0.0) (<= opacity 1.0))
-    (error "Opacity should be between 0.0 and 1.0"))
+  (unless (<= 0 opacity 1)
+    (user-error "Opacity should be between 0.0 and 1.0"))
   (setq eglot-inactive-regions-opacity opacity)
   (eglot-inactive-regions-refresh-all))
 
@@ -148,7 +143,7 @@ Only applies to `darken-foreground' style."
   "Interactively set a new SHADING value for inactive regions.
 Only applies to `shade-background' style."
   (interactive "nNew inactive region background color shading [0-1.0]: ")
-  (unless (and (>= shading 0.0) (<= shading 1.0))
+  (unless (<= 0 shading 1)
     (error "Shading factor should be between 0.0 and 1.0"))
   (setq eglot-inactive-regions-shading shading)
   (eglot-inactive-regions-refresh-all))
@@ -157,13 +152,13 @@ Only applies to `shade-background' style."
   "Linearly interpolate between two colors.
 Blend colors FROM-COLOR and TO-COLOR with ALPHA interpolation
 factor."
-  (if-let ((from-rgb (color-name-to-rgb from-color))
-           (to-rgb (color-name-to-rgb to-color))
-           (alpha (min 1.0 (max 0.0 alpha))))
-      (apply 'color-rgb-to-hex
-             (cl-mapcar #'(lambda (a b) (+ (* a alpha) (* b (- 1.0 alpha))))
+  (if-let* ((from-rgb (color-name-to-rgb from-color))
+            (to-rgb (color-name-to-rgb to-color))
+            (alpha (min 1.0 (max 0.0 alpha))))
+      (apply #'color-rgb-to-hex
+             (cl-mapcar (lambda (a b) (+ (* a alpha) (* b (- 1.0 alpha))))
                         from-rgb to-rgb))
-      'unspecified))
+    'unspecified))
 
 (defun eglot-inactive-regions-cleanup ()
   "Clean up inactive regions."
@@ -197,23 +192,9 @@ If the correspondend \"eglot-inactive\" face doesn't not exist yet create it."
          (eglot-inactive-face (intern eglot-inactive-face-name))
          (eglot-inactive-doc (concat (face-documentation parent-face) doc-suffix)))
     (unless (facep eglot-inactive-face)
-      (eval `(defface ,eglot-inactive-face '((t nil)) ,eglot-inactive-doc)))
+      (custom-declare-face eglot-inactive-face '((t nil)) eglot-inactive-doc))
     (set-face-foreground eglot-inactive-face eglot-inactive-fg)
     eglot-inactive-face))
-
-(defun eglot-inactive-regions--forward-face-or-whitespace ()
-  "Forward to the next face change.
-Some mode use `default' face for both generic keywords and
-whitespace while some other uses nil for whitespace.  Either way
-we don't want to include whitespace in fontification."
-  (let* ((prev-face (get-text-property (point) 'face))
-         (_ (forward-char))
-         (next-face (get-text-property (point) 'face)))
-    (while (and (eq prev-face next-face)
-                (not (thing-at-point 'whitespace)))
-      (setq prev-face (get-text-property (point) 'face))
-      (forward-char)
-      (setq next-face (get-text-property (point) 'face)))))
 
 (defun eglot-inactive-regions--fontify (start end &optional verbose)
   "Fontify inactive region (START END) with semitransparent faces."
@@ -255,15 +236,13 @@ we don't want to include whitespace in fontification."
               (widen)
               (goto-char from)
               (while (<= (point) to)
-                (eglot-inactive-regions--forward-face-or-whitespace)
-                ;; no need to dim whitespace
-                (unless (string-match-p "[[:blank:]\n]" (string (char-before)))
-                  (let* ((cur-face (eglot-inactive-regions--get-face (1- (point))))
-                         (eglot-inactive-face (eglot-inactive-regions--make-darken-face cur-face))
-                         (ov (make-overlay beg (point))))
-                      (overlay-put ov 'face eglot-inactive-face)
-                      (push ov eglot-inactive-regions--overlays)))
-                (setq beg (point))))))
+                (goto-char (next-single-property-change (point) 'face))
+                (let* ((cur-face (eglot-inactive-regions--get-face (1- (point))))
+                       (eglot-inactive-face (eglot-inactive-regions--make-darken-face cur-face))
+                       (ov (make-overlay beg (point))))
+                  (overlay-put ov 'face eglot-inactive-face)
+                  (push ov eglot-inactive-regions--overlays)))
+              (setq beg (point)))))
         (setq start to)))))
 
 (defun eglot-inactive-regions-refresh ()
@@ -280,16 +259,16 @@ Useful to update colors after a face or theme change."
     (dolist (range eglot-inactive-regions--ranges)
       (let ((beg (car range))
             (end (cdr range)))
-        (cond
-         ((eq eglot-inactive-regions-style 'darken-foreground)
+        (pcase-exhaustive eglot-inactive-regions-style
+         ('darken-foreground
           (with-silent-modifications
             (put-text-property beg end 'eglot-inactive-region t))
           (font-lock-flush))
-         ((eq eglot-inactive-regions-style 'shadow-face)
+         ('shadow-face
           (let ((ov (make-overlay beg end)))
             (overlay-put ov 'face 'eglot-inactive-regions-shadow-face)
             (push ov eglot-inactive-regions--overlays)))
-         ((eq eglot-inactive-regions-style 'shade-background)
+         ('shade-background
           (let ((ov (make-overlay beg (1+ end))))
             (overlay-put ov 'face 'eglot-inactive-regions-shade-face)
             (push ov eglot-inactive-regions--overlays))))))))
@@ -338,7 +317,7 @@ Useful to update colors after a face or theme change."
   "Enable inactive code capabilities for SERVER."
   (let ((base (cl-call-next-method)))
     (when (cl-find "clangd" (process-command (jsonrpc--process server))
-                   :test #'string-match)
+                   :test #'string-search)
       (setf (cl-getf (cl-getf base :textDocument)
                      :inactiveRegionsCapabilities)
             '(:inactiveRegions t)))
@@ -354,7 +333,7 @@ Useful to update colors after a face or theme change."
   (_server (_method (eql textDocument/inactiveRegions))
            &key regions textDocument &allow-other-keys)
   "Listen to clangd inactiveRegions notifications."
-  (if-let ((uri (cl-getf textDocument :uri)))
+  (if-let* ((uri (cl-getf textDocument :uri)))
       (eglot-inactive-regions--handle-notification uri regions)))
 
 (provide 'eglot-inactive-regions)
