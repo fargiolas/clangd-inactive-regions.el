@@ -5,7 +5,7 @@
 ;; <joaotavora@gmail.com> (see bug#65418)
 
 ;; Author: Filippo Argiolas <filippo.argiolas@gmail.com>
-;; Version: 0.6.1
+;; Version: 0.6.2
 ;; URL: https://github.com/fargiolas/eglot-inactive-regions
 ;; Package-Requires: ((emacs "29.1"))
 
