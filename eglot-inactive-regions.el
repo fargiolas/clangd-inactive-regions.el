@@ -56,7 +56,7 @@
   :prefix "eglot-inactive-regions-")
 
 (defun eglot-inactive-regions--set-and-refresh (sym val)
-  "Set custom variable SYM to value VAL and trigger a refresh of all active buffers."
+  "Set custom variable SYM to value VAL and refresh of all active buffers."
   (set-default sym val)
   (when (fboundp 'eglot-inactive-regions-refresh-all)
     (eglot-inactive-regions-refresh-all)))
@@ -301,13 +301,15 @@ Useful to update colors after a face or theme change."
   "Fallback to deprecated uri-to-path URI if new function is not available."
   (if (fboundp 'eglot-uri-to-path)
       (eglot-uri-to-path uri)
-    (eglot--uri-to-path uri)))
+    (with-suppressed-warnings ((obsolete eglot--uri-to-path))
+      (eglot--uri-to-path uri))))
 
 (defun eglot-inactive-regions--range-region (range)
   "Fallback to deprecated range-region RANGE if new function is not available."
   (if (fboundp 'eglot-range-region)
       (eglot-range-region range)
-    (eglot--range-region range)))
+    (with-suppressed-warnings ((obsolete eglot--range-region))
+      (eglot--range-region range))))
 
 (defun eglot-inactive-regions--handle-notification (uri regions)
   "Update inactive REGIONS for the buffer corresponding to URI."
