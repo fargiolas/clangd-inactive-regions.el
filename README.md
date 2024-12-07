@@ -1,6 +1,6 @@
 # eglot-inactive-regions
 
-<a href="https://elpa.gnu.org/packages/eglot-inactive-regions.html"><img alt="GNU ELPA" src="https://elpa.nongnu.org/nongnu/eglot-inactive-regions.svg"/></a>
+<a href="https://elpa.nongnu.org/nongnu/eglot-inactive-regions.html"><img alt="GNU ELPA" src="https://elpa.nongnu.org/nongnu/eglot-inactive-regions.svg"/></a>
 
 Emacs Eglot extension to visually style inactive preprocessor
 branches.
