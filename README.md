@@ -1,5 +1,7 @@
 # eglot-inactive-regions
 
+<a href="https://elpa.gnu.org/packages/eglot-inactive-regions.html"><img alt="GNU ELPA" src="https://elpa.nongnu.org/nongnu/eglot-inactive-regions.svg"/></a>
+
 Emacs Eglot extension to visually style inactive preprocessor
 branches.
 
@@ -44,10 +46,9 @@ Windows code is correctly disabled.
 
 ## Installation
 
-```lisp
-(unless (package-installed-p 'eglot-inactive-regions)
-  (package-vc-install "https://github.com/fargiolas/eglot-inactive-regions"))
-```
+It's in NonGNU ELPA so you can just install it with Emacs built-in
+package manager from `M-x list-packages` or just add it to your
+configuration with `use-package` as described below.
 
 ## Usage
 
