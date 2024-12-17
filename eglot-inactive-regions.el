@@ -99,6 +99,9 @@ Background color is dynamically computed by blending current theme
 background and foreground colors with `eglot-inactive-regions-shading'
 factor.  All other face attributes you can customize.")
 
+(defvar eglot-inactive-regions-refresh-hook '())
+(defvar eglot-inactive-regions-cleanup-hook '())
+
 (defvar-local eglot-inactive-regions--overlays '())
 (setq-default eglot-inactive-regions--overlays '())
 (defvar-local eglot-inactive-regions--ranges '())
@@ -167,6 +170,7 @@ factor."
     (setq eglot-inactive-regions--overlays '())
     (with-silent-modifications
       (remove-text-properties (point-min) (point-max) '(eglot-inactive-region nil)))
+    (run-hooks 'eglot-inactive-regions-cleanup-hook)
     (font-lock-flush)))
 
 (defun eglot-inactive-regions--get-face (pos)
@@ -271,7 +275,8 @@ Useful to update colors after a face or theme change."
          ('shade-background
           (let ((ov (make-overlay beg (1+ end))))
             (overlay-put ov 'face 'eglot-inactive-regions-shade-face)
-            (push ov eglot-inactive-regions--overlays))))))))
+            (push ov eglot-inactive-regions--overlays))))
+        (run-hook-with-args 'eglot-inactive-regions-refresh-hook beg end)))))
 
 (defun eglot-inactive-regions-refresh-all ()
   "Refresh all buffers where this mode is enabled."
